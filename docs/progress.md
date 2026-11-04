@@ -10,15 +10,15 @@
 | ✅ | README：寫下痛點與動機 | 10/28 | docs: 在README上新增動機 | |
 | ✅ | `docs/requirements.md` 需求與業務規則 | | | 規則已全部確認 |
 | ✅ | `docs/domain-examples.md` 計算範例 | | | |
-| ⬜ | `docs/progress.md` 開發歷程（本檔案） | | | |
+| ✅ | `docs/progress.md` 開發歷程（本檔案） | 10/28 | docs: 新增需求、計算範例與開發歷程 | |
 
 ## 階段 1：領域邏輯（純 Java，不依賴 Spring）
 
 | 狀態 | 項目 | 完成日期 | Commit 訊息 | 備註 |
 |---|---|---|---|---|
-| ⬜ | 建立 Maven 專案（Java 17、JUnit 5） | | | |
-| ⬜ | 撰寫日期計算測試（紅燈） | | | 對應 domain-examples 第 1 節 |
-| ⬜ | 實作開封日、丟棄日、剩餘天數（綠燈） | | | |
+| ✅ | 建立 Maven 專案（Java 17、JUnit 5） | 11/05 | chore: 建立 Maven 專案骨架 | |
+| ✅ | 撰寫日期計算測試（紅燈） | 11/05 | feat: 實作丟棄日計算 | 對應 domain-examples 第 1 節 |
+| 🔄 | 實作開封日、丟棄日、剩餘天數（綠燈） | 11/05 | feat: 實作丟棄日計算 | 已完成丟棄日計算 |
 | ⬜ | 撰寫狀態判斷測試（紅燈） | | | 對應 domain-examples 第 2 節 |
 | ⬜ | 實作狀態判斷：綠、黃、紅（綠燈） | | | |
 | ⬜ | 撰寫並實作狀態統計 | | | 對應 domain-examples 第 3 節 |
