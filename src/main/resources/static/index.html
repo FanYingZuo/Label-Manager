@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Label Manager 標籤管理系統</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <h1>🏷️ 標籤管理系統</h1>
+                <p class="subtitle">食材保存期限與換標追蹤</p>
+            </div>
+            
+            <!-- 頂部三色狀態統計 -->
+            <div class="status-summary-bar">
+                <div class="summary-card status-green">
+                    <span class="summary-label">安全</span>
+                    <span class="summary-count" id="count-green">0</span>
+                    <span class="summary-unit">項</span>
+                </div>
+                <div class="summary-card status-yellow">
+                    <span class="summary-label">即將到期</span>
+                    <span class="summary-count" id="count-yellow">0</span>
+                    <span class="summary-unit">項</span>
+                </div>
+                <div class="summary-card status-red">
+                    <span class="summary-label">今天丟棄／已過期</span>
+                    <span class="summary-count" id="count-red">0</span>
+                    <span class="summary-unit">項</span>
+                </div>
+            </div>
+
+            <!-- 控制按鈕區 -->
+            <div class="header-actions">
+                <div class="date-badge" id="today-display">今天：載入中...</div>
+                <button type="button" class="btn btn-primary" id="btn-add-shelf">＋ 新增層架</button>
+                <button type="button" class="btn btn-secondary" id="btn-remove-last-shelf">－ 移除最後一層</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- 層架清單容器 -->
+        <div id="shelves-container" class="shelves-container">
+            <div class="loading-state">載入層架資料中...</div>
+        </div>
+    </main>
+
+    <!-- 新增品項彈出視窗 -->
+    <div id="item-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">新增品項</h3>
+                <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <form id="item-form">
+                <input type="hidden" id="form-shelf-id" value="">
+                
+                <div class="form-group">
+                    <label for="form-item-name">品名 <span class="required">*</span></label>
+                    <input type="text" id="form-item-name" placeholder="例如：火腿、BBQ醬" required autofocus>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="form-thaw-days">解凍天數（解）<span class="required">*</span></label>
+                        <input type="number" id="form-thaw-days" min="0" value="1" required>
+                        <small class="form-hint">冷藏解凍所需天數（允許 0）</small>
+                    </div>
+                    <div class="form-group half">
+                        <label for="form-keep-days">保存天數（放）<span class="required">*</span></label>
+                        <input type="number" id="form-keep-days" min="0" value="2" required>
+                        <small class="form-hint">開封後的保存期限</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-thaw-date">解凍日 <span class="required">*</span></label>
+                    <input type="date" id="form-thaw-date" required>
+                    <small class="form-hint">換標或放置當天（預設今天）</small>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="modal-cancel-btn">取消</button>
+                    <button type="submit" class="btn btn-primary">確定新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 提示訊息 Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
