@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>iOS Experience Reference UI</title>
+  <link rel="stylesheet" href="./ios-style.css">
+  <style>
+    /* 示範頁面特有佈局與安全區間隔 */
+    .screen-content {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 0 16px calc(80px + env(safe-area-inset-bottom, 20px));
+    }
+    .badge {
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .badge-green {
+      background: rgba(52, 199, 89, 0.15);
+      color: #34C759;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. 毛玻璃頂部導航列 -->
+  <header class="ios-navbar">
+    <div class="ios-navbar-content">
+      <span style="font-weight: 600; color: var(--ios-blue);">編輯</span>
+      <span style="font-size: 15px; font-weight: 600;">食品標籤</span>
+      <span style="font-weight: 600; color: var(--ios-blue);">＋</span>
+    </div>
+  </header>
+
+  <main class="screen-content">
+    <!-- 2. 大標題 -->
+    <div class="ios-large-title-wrap">
+      <h1 class="ios-large-title">食材保存</h1>
+    </div>
+
+    <!-- 3. 群組標題與圓角卡片群組 -->
+    <div class="ios-section-header">第一層 · 熟食區</div>
+    <div class="ios-card-group">
+      <div class="ios-card-item">
+        <div>
+          <div style="font-size: 17px; font-weight: 600;">火腿切片</div>
+          <div style="font-size: 13px; color: var(--ios-label-secondary);">解凍日：11/05 · 開封日：11/06</div>
+        </div>
+        <span class="badge badge-green">還有 3 天</span>
+      </div>
+      <div class="ios-card-item">
+        <div>
+          <div style="font-size: 17px; font-weight: 600;">特調 BBQ 醬</div>
+          <div style="font-size: 13px; color: var(--ios-label-secondary);">解凍日：11/05 · 開封日：11/06</div>
+        </div>
+        <span class="badge badge-green">還有 7 天</span>
+      </div>
+    </div>
+
+    <!-- 4. 具備物理動態的互動按鈕 -->
+    <div class="ios-section-header">快捷操作</div>
+    <div style="display: flex; gap: 12px; margin-top: 8px;">
+      <button class="ios-btn ios-btn-primary" style="flex: 1;">一鍵換標</button>
+      <button class="ios-btn ios-btn-secondary" style="flex: 1;">新增品項</button>
+    </div>
+  </main>
+
+  <!-- 5. 底部分頁列 (Tab Bar) -->
+  <nav class="ios-tab-bar">
+    <a href="#" class="ios-tab-item active">
+      <span class="ios-tab-icon">🏷️</span>
+      <span>標籤</span>
+    </a>
+    <a href="#" class="ios-tab-item">
+      <span class="ios-tab-icon">📊</span>
+      <span>統計</span>
+    </a>
+    <a href="#" class="ios-tab-item">
+      <span class="ios-tab-icon">⚙️</span>
+      <span>設定</span>
+    </a>
+  </nav>
+
+</body>
+</html>
