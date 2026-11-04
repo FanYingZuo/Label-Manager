@@ -48,6 +48,16 @@ public class ShelfController {
         }
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> removeShelf(@PathVariable("id") Long id) {
+        try {
+            labelManagerService.removeShelf(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PutMapping("/{id}/name")
     public ResponseEntity<ShelfResponse> renameShelf(
             @PathVariable("id") Long id,

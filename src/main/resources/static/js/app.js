@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const todayDisplayEl = document.getElementById('today-display');
     const shelvesContainerEl = document.getElementById('shelves-container');
     const btnAddShelf = document.getElementById('btn-add-shelf');
-    const btnRemoveLastShelf = document.getElementById('btn-remove-last-shelf');
 
     // Modal Elements
     const itemModal = document.getElementById('item-modal');
@@ -22,9 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Toast
     const toastEl = document.getElementById('toast');
+    let toastTimeout = null;
 
     // State
-    let draggedData = null; // { itemId, sourceShelfId, sourceIndex }
+    let draggedItemData = null; // { itemId, sourceShelfId, sourceIndex }
+    let currentlySwipedCard = null; // currently open swipe card
 
     // 取得今天 YYYY-MM-DD
     function getTodayString() {
@@ -35,17 +36,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${year}-${month}-${day}`;
     }
 
+    // 格式化日期簡短顯示 (例: 2026-10-31 -> 10/31)
+    function formatShortDate(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[1]}/${parts[2]}`;
+        }
+        return dateStr;
+    }
+
     const todayStr = getTodayString();
     todayDisplayEl.textContent = `今天：${todayStr}`;
 
-    // 顯示 Toast 訊息
+    // 顯示 iOS 風格膠囊 Toast 訊息
     function showToast(message, type = 'info') {
+        if (toastTimeout) clearTimeout(toastTimeout);
         toastEl.textContent = message;
         toastEl.className = `toast ${type}`;
-        setTimeout(() => {
+        toastTimeout = setTimeout(() => {
             toastEl.className = 'toast hidden';
-        }, 3000);
+        }, 3200);
     }
+
+    // 點擊空白處關閉已滑動打開的層架
+    document.addEventListener('click', (e) => {
+        if (currentlySwipedCard && !currentlySwipedCard.closest('.shelf-swipe-wrapper').contains(e.target)) {
+            currentlySwipedCard.classList.remove('swiped-open');
+            currentlySwipedCard = null;
+        }
+    });
 
     // 載入資料
     async function loadData() {
@@ -56,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
 
             if (!shelvesRes.ok || !summaryRes.ok) {
-                throw new Error('伺服器連線失敗');
+                throw new Error('伺服器連線異常，請確認後端是否運行');
             }
 
             const shelves = await shelvesRes.json();
@@ -66,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderShelves(shelves);
         } catch (err) {
             console.error(err);
-            shelvesContainerEl.innerHTML = `<div class="loading-state" style="color: #c62828;">載入失敗：${err.message}</div>`;
+            shelvesContainerEl.innerHTML = `<div class="loading-state" style="color: var(--ios-red);">載入失敗：${err.message}</div>`;
         }
     }
 
@@ -77,21 +97,45 @@ document.addEventListener('DOMContentLoaded', () => {
         countRedEl.textContent = summary.red || 0;
     }
 
-    // 渲染層架
+    // 渲染所有層架
     function renderShelves(shelves) {
         shelvesContainerEl.innerHTML = '';
 
-        if (shelves.length === 0) {
-            shelvesContainerEl.innerHTML = '<div class="loading-state">目前尚無層架，請點擊上方按鈕新增。</div>';
+        if (!shelves || shelves.length === 0) {
+            shelvesContainerEl.innerHTML = '<div class="loading-state">目前尚無層架，請點擊下方虛擬方塊新增一層。</div>';
             return;
         }
 
         shelves.forEach((shelf, shelfIndex) => {
-            const shelfCard = document.createElement('div');
-            shelfCard.className = 'shelf-card';
-            shelfCard.dataset.shelfId = shelf.id;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'shelf-swipe-wrapper';
 
-            // Header
+            // 背後 iOS 紅色垃圾桶刪除按鈕
+            const actions = document.createElement('div');
+            actions.className = 'shelf-swipe-actions';
+            actions.innerHTML = `
+                <button type="button" class="shelf-delete-btn" title="刪除此層架">
+                    <span class="trash-icon">🗑️</span>
+                    <span>刪除</span>
+                </button>
+            `;
+
+            // 前景層架卡片
+            const card = document.createElement('div');
+            card.className = 'shelf-card';
+            card.dataset.shelfId = shelf.id;
+
+            // 綁定向左滑動手勢
+            setupShelfSwipe(card, wrapper, shelf);
+
+            // 綁定垃圾桶刪除點擊
+            const deleteBtn = actions.querySelector('.shelf-delete-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleDeleteShelf(shelf.id, shelf.name, card);
+            });
+
+            // 層架頂部 Header
             const header = document.createElement('div');
             header.className = 'shelf-header';
 
@@ -100,15 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const badge = document.createElement('span');
             badge.className = 'shelf-badge';
-            badge.textContent = `層 ${shelfIndex + 1}`;
+            badge.textContent = `第 ${shelfIndex + 1} 層`;
 
             const nameInput = document.createElement('input');
             nameInput.type = 'text';
             nameInput.className = 'shelf-name-input';
             nameInput.value = shelf.name;
             nameInput.title = '點擊可編輯層架名稱，留空自動還原預設名稱';
-            
-            // 編輯層架名稱事件
+
             nameInput.addEventListener('blur', async () => {
                 if (nameInput.value !== shelf.name) {
                     await updateShelfName(shelf.id, nameInput.value);
@@ -127,26 +170,32 @@ document.addEventListener('DOMContentLoaded', () => {
             titleArea.appendChild(badge);
             titleArea.appendChild(nameInput);
             titleArea.appendChild(countSpan);
-            header.appendChild(titleArea);
-            shelfCard.appendChild(header);
 
-            // Items Rack
+            const hintArea = document.createElement('div');
+            hintArea.className = 'shelf-swipe-hint';
+            hintArea.textContent = '👈 左滑刪除';
+
+            header.appendChild(titleArea);
+            header.appendChild(hintArea);
+            card.appendChild(header);
+
+            // 層架品項陳列區
             const rack = document.createElement('div');
             rack.className = 'shelf-items-rack';
             rack.dataset.shelfId = shelf.id;
 
-            // 啟用拖曳放置到該層
+            // 啟用拖曳放置
             setupRackDropZone(rack, shelf.id);
 
-            // 渲染品項卡片
+            // 渲染簡約品項卡片（解1放3）
             shelf.items.forEach((item, itemIndex) => {
-                const itemCard = createItemCard(item, shelf.id, itemIndex);
+                const itemCard = createSimplifiedItemCard(item, shelf.id, itemIndex);
                 rack.appendChild(itemCard);
             });
 
-            // 右側「+」新增方塊
+            // 右側「+ 新增品項」虛擬方塊
             const addCard = document.createElement('div');
-            addCard.className = 'add-item-card';
+            addCard.className = 'add-item-card ios-tappable';
             addCard.title = `在「${shelf.name}」新增品項`;
             addCard.innerHTML = `
                 <div class="add-item-icon">＋</div>
@@ -155,70 +204,69 @@ document.addEventListener('DOMContentLoaded', () => {
             addCard.addEventListener('click', () => openAddItemModal(shelf.id, shelf.name));
             rack.appendChild(addCard);
 
-            shelfCard.appendChild(rack);
-            shelvesContainerEl.appendChild(shelfCard);
+            card.appendChild(rack);
+            wrapper.appendChild(actions);
+            wrapper.appendChild(card);
+            shelvesContainerEl.appendChild(wrapper);
         });
     }
 
-    // 建立品項卡片
-    function createItemCard(item, shelfId, itemIndex) {
+    // 建立 iOS 極簡風格品項卡片（核心：顯示「解1放3」）
+    function createSimplifiedItemCard(item, shelfId, itemIndex) {
         const card = document.createElement('div');
         const colorClass = item.statusColor.toLowerCase();
-        card.className = `item-card card-${colorClass}`;
+        card.className = `item-card card-${colorClass} ios-tappable`;
         card.draggable = true;
         card.dataset.itemId = item.id;
         card.dataset.shelfId = shelfId;
         card.dataset.itemIndex = itemIndex;
 
-        // 狀態 Badge 樣式
         const pillClass = `pill-${colorClass}`;
+        const shortDiscardDate = formatShortDate(item.discardDate);
 
         card.innerHTML = `
             <div>
                 <div class="item-card-header">
                     <span class="item-name">${escapeHtml(item.name)}</span>
-                    <button type="button" class="btn-delete" title="刪除品項">✕</button>
+                    <button type="button" class="btn-delete ios-tappable" title="刪除品項">✕</button>
                 </div>
-                <div class="item-status-pill ${pillClass}">
-                    ${item.statusText}
+
+                <!-- 簡潔規格與狀態：顯示「解1放3」與當前天數狀態 -->
+                <div class="item-specs-row">
+                    <span class="spec-badge">解${item.thawDays}放${item.keepDays}</span>
+                    <span class="item-status-pill ${pillClass}">${item.statusText}</span>
                 </div>
-                <div class="item-dates">
-                    <div class="date-row">
-                        <span>解凍日：</span>
-                        <span>${item.thawDate} (解${item.thawDays})</span>
-                    </div>
-                    <div class="date-row">
-                        <span>開封日：</span>
-                        <span>${item.openDate} (放${item.keepDays})</span>
-                    </div>
-                    <div class="date-row discard">
-                        <span>丟棄日：</span>
-                        <span>${item.discardDate}</span>
-                    </div>
+
+                <!-- 丟棄期限一目了然 -->
+                <div class="item-discard-info">
+                    <span>到期日</span>
+                    <span class="discard-date">${shortDiscardDate}</span>
                 </div>
             </div>
+
+            <!-- iOS 換標按鈕 -->
             <div>
-                <button type="button" class="btn btn-retag">換標（更新為今日）</button>
+                <button type="button" class="btn-retag ios-tappable">換標（今日）</button>
             </div>
         `;
 
-        // 綁定換標按鈕
+        // 綁定換標
         const retagBtn = card.querySelector('.btn-retag');
         retagBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             handleRetag(item);
         });
 
-        // 綁定刪除按鈕
+        // 綁定刪除品項
         const deleteBtn = card.querySelector('.btn-delete');
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            handleDelete(item);
+            handleDeleteItem(item);
         });
 
-        // 綁定拖曳事件
+        // 綁定品項拖曳
         card.addEventListener('dragstart', (e) => {
-            draggedData = {
+            draggedItemData = {
                 itemId: item.id,
                 sourceShelfId: shelfId,
                 sourceIndex: itemIndex
@@ -236,7 +284,134 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    // 設定層架放置區
+    // 設定 iOS 向左滑動手勢 (Swipe to Delete)
+    function setupShelfSwipe(card, wrapper, shelf) {
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let isTouching = false;
+        let isHorizontalSwipe = false;
+
+        const handleStart = (clientX, clientY) => {
+            // 如果點擊的是輸入框或按鈕，不觸發滑動
+            startX = clientX;
+            startY = clientY;
+            currentX = clientX;
+            isTouching = true;
+            isHorizontalSwipe = false;
+
+            if (currentlySwipedCard && currentlySwipedCard !== card) {
+                currentlySwipedCard.classList.remove('swiped-open');
+                currentlySwipedCard = null;
+            }
+        };
+
+        const handleMove = (clientX, clientY) => {
+            if (!isTouching) return;
+            const diffX = clientX - startX;
+            const diffY = clientY - startY;
+
+            if (!isHorizontalSwipe) {
+                if (Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+                    isHorizontalSwipe = true;
+                } else if (Math.abs(diffY) > 10) {
+                    isTouching = false;
+                    return;
+                }
+            }
+
+            if (isHorizontalSwipe) {
+                currentX = clientX;
+                // 由右向左滑為負值
+                if (diffX < 0) {
+                    const translateX = Math.max(-90, diffX);
+                    card.style.transform = `translateX(${translateX}px)`;
+                } else if (card.classList.contains('swiped-open')) {
+                    // 若已展開，向右滑收回
+                    const translateX = Math.min(0, -90 + diffX);
+                    card.style.transform = `translateX(${translateX}px)`;
+                }
+            }
+        };
+
+        const handleEnd = () => {
+            if (!isTouching) return;
+            isTouching = false;
+            card.style.transform = ''; // 清除 inline transform，交由 CSS class 控制
+
+            const diffX = currentX - startX;
+            if (diffX < -40) {
+                // 成功展開向左滑動
+                card.classList.add('swiped-open');
+                currentlySwipedCard = card;
+            } else {
+                card.classList.remove('swiped-open');
+                if (currentlySwipedCard === card) currentlySwipedCard = null;
+            }
+        };
+
+        // 觸控事件 (Mobile Touch)
+        card.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.closest('.item-card') || e.target.closest('.add-item-card')) return;
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        card.addEventListener('touchmove', (e) => {
+            if (!isTouching) return;
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        card.addEventListener('touchend', handleEnd);
+
+        // 滑鼠事件 (Desktop Mouse Drag on Shelf Header)
+        const header = card.querySelector('.shelf-header');
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            handleStart(e.clientX, e.clientY);
+
+            const onMouseMove = (moveEvent) => {
+                handleMove(moveEvent.clientX, moveEvent.clientY);
+            };
+
+            const onMouseUp = () => {
+                handleEnd();
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    }
+
+    // 刪除層架處理（含防護檢查）
+    async function handleDeleteShelf(shelfId, shelfName, card) {
+        if (!confirm(`確定要刪除「${shelfName}」嗎？\n注意：若該層仍有品項則無法刪除。`)) {
+            card.classList.remove('swiped-open');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/shelves/${shelfId}`, {
+                method: 'DELETE',
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || '刪除層架失敗');
+            }
+
+            showToast(`已成功刪除「${shelfName}」`, 'success');
+            await loadData();
+        } catch (err) {
+            console.error(err);
+            showToast(err.message, 'error');
+            card.classList.remove('swiped-open');
+        }
+    }
+
+    // 設定品項拖曳放置區
     function setupRackDropZone(rack, shelfId) {
         rack.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -254,14 +429,12 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             rack.classList.remove('drag-over');
 
-            if (!draggedData) return;
+            if (!draggedItemData) return;
 
-            // 計算放置位置的 index
             const afterElement = getDragAfterElement(rack, e.clientX, e.clientY);
             let targetIndex;
 
             if (afterElement == null) {
-                // 放到最後面（在「+」方塊前面）
                 const itemCards = rack.querySelectorAll('.item-card:not(.dragging)');
                 targetIndex = itemCards.length;
             } else {
@@ -273,33 +446,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        itemId: draggedData.itemId,
+                        itemId: draggedItemData.itemId,
                         targetShelfId: shelfId,
                         targetIndex: targetIndex
                     })
                 });
 
-                if (!res.ok) {
-                    throw new Error('移動失敗');
-                }
-
+                if (!res.ok) throw new Error('移動品項失敗');
                 await loadData();
             } catch (err) {
                 console.error(err);
                 showToast(err.message, 'error');
             } finally {
-                draggedData = null;
+                draggedItemData = null;
             }
         });
     }
 
-    // 計算滑鼠落在哪個卡片之前
     function getDragAfterElement(container, x, y) {
         const draggableElements = [...container.querySelectorAll('.item-card:not(.dragging)')];
 
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
-            // 在同一列以 X 軸為主，跨列以 Y 軸為主
             const inSameRow = (y >= box.top && y <= box.bottom);
             const offset = inSameRow ? (x - box.left - box.width / 2) : (y - box.top - box.height / 2);
 
@@ -329,9 +497,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 換標行為
+    // 換標行為（更新為今日）
     async function handleRetag(item) {
-        if (!confirm(`確定要將「${item.name}」換標為今日嗎？\n解凍日將更新為 ${todayStr}，並重新計算丟棄日。`)) {
+        if (!confirm(`確定要將「${item.name}」換標為今日嗎？\n解凍日將更新為 ${todayStr}，並重新計算保存期限。`)) {
             return;
         }
 
@@ -352,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 刪除品項
-    async function handleDelete(item) {
+    async function handleDeleteItem(item) {
         if (!confirm(`確定要刪除品項「${item.name}」嗎？`)) {
             return;
         }
@@ -371,47 +539,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 新增層架
-    btnAddShelf.addEventListener('click', async () => {
-        try {
-            const res = await fetch('/api/shelves', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
+    // 點擊最下方虛擬方塊「新增層架」
+    if (btnAddShelf) {
+        btnAddShelf.addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/shelves', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ name: "" })
+                });
 
-            if (!res.ok) throw new Error('新增層架失敗');
-            await loadData();
-            showToast('成功新增層架', 'success');
-        } catch (err) {
-            console.error(err);
-            showToast(err.message, 'error');
-        }
-    });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || '新增層架失敗');
+                }
 
-    // 移除最後一層
-    btnRemoveLastShelf.addEventListener('click', async () => {
-        if (!confirm('確定要移除最後一層層架嗎？\n注意：若該層仍有品項則無法移除。')) {
-            return;
-        }
+                showToast('已成功新增一層層架！', 'success');
+                await loadData();
 
-        try {
-            const res = await fetch('/api/shelves/last', {
-                method: 'DELETE'
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || '移除層架失敗');
+                // 平滑捲動至新層架
+                setTimeout(() => {
+                    const allWrappers = document.querySelectorAll('.shelf-swipe-wrapper');
+                    if (allWrappers.length > 0) {
+                        allWrappers[allWrappers.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, 'error');
             }
-
-            await loadData();
-            showToast('已成功移除最後一層層架', 'success');
-        } catch (err) {
-            console.error(err);
-            showToast(err.message, 'error');
-        }
-    });
+        });
+    }
 
     // 打開新增品項視窗
     function openAddItemModal(shelfId, shelfName) {
@@ -425,7 +586,6 @@ document.addEventListener('DOMContentLoaded', () => {
         formItemName.focus();
     }
 
-    // 關閉新增品項視窗
     function closeAddItemModal() {
         itemModal.classList.add('hidden');
     }
@@ -439,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 送出新增品項表單
+    // 送出新增品項
     itemForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const shelfId = formShelfId.value;
@@ -472,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             closeAddItemModal();
             await loadData();
-            showToast(`已成功新增品項「${name}」！`, 'success');
+            showToast(`已新增品項「${name}」！`, 'success');
         } catch (err) {
             console.error(err);
             showToast(err.message, 'error');
@@ -486,6 +646,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return div.innerHTML;
     }
 
-    // 初始化載入
+    // 啟動載入
     loadData();
 });

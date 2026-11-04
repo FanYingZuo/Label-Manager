@@ -97,6 +97,26 @@ public class LabelManagerService {
         shelfRepository.delete(lastShelf);
     }
 
+    public void removeShelf(Long shelfId) {
+        ShelfEntity shelf = shelfRepository.findById(shelfId)
+                .orElseThrow(() -> new IllegalArgumentException("層架不存在: " + shelfId));
+
+        long count = itemRepository.countByShelfId(shelfId);
+        if (count > 0) {
+            throw new IllegalStateException("該層仍有 " + count + " 個品項，不可移除（請先清空或移走食材）");
+        }
+
+        shelfRepository.delete(shelf);
+
+        // 重新整理排序
+        List<ShelfEntity> remaining = shelfRepository.findAllByOrderBySortOrderAsc();
+        for (int i = 0; i < remaining.size(); i++) {
+            ShelfEntity s = remaining.get(i);
+            s.setSortOrder(i + 1);
+            shelfRepository.save(s);
+        }
+    }
+
     public ShelfResponse renameShelf(Long shelfId, String newName) {
         ShelfEntity shelf = shelfRepository.findById(shelfId)
                 .orElseThrow(() -> new IllegalArgumentException("層架不存在: " + shelfId));

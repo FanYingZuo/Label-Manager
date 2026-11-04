@@ -137,6 +137,35 @@ class ApiControllerTest {
     }
 
     @Test
+    @DisplayName("API: 移除指定層架 (有品項時拒絕，空層時允許並重排)")
+    void testRemoveSpecificShelf() throws Exception {
+        var shelves = shelfRepository.findAllByOrderBySortOrderAsc();
+        Long shelf2Id = shelves.get(1).getId();
+
+        // 在第 2 層加品項
+        mockMvc.perform(post("/api/shelves/" + shelf2Id + "/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CreateItemRequest("測試品項", 0, 1, LocalDate.now()))))
+                .andExpect(status().isCreated());
+
+        // 嘗試移除第 2 層 => 應被拒絕 400
+        mockMvc.perform(delete("/api/shelves/" + shelf2Id))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error", containsString("該層仍有")));
+
+        // 刪除該品項
+        var item = itemRepository.findByShelfIdOrderBySortOrderAsc(shelf2Id).get(0);
+        mockMvc.perform(delete("/api/items/" + item.getId()))
+                .andExpect(status().isNoContent());
+
+        // 再次移除第 2 層 => 成功 204
+        mockMvc.perform(delete("/api/shelves/" + shelf2Id))
+                .andExpect(status().isNoContent());
+
+        assertEquals(5, shelfRepository.count());
+    }
+
+    @Test
     @DisplayName("API: 移除最後一層防護 (有品項時拒絕，空層時允許)")
     void testRemoveLastShelfProtection() throws Exception {
         var shelves = shelfRepository.findAllByOrderBySortOrderAsc();

@@ -2,59 +2,75 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Label Manager 標籤管理系統</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header class="app-header">
+    <!-- iOS 毛玻璃頂部導航列 -->
+    <header class="app-header ios-glass">
         <div class="header-container">
             <div class="brand">
                 <h1>🏷️ 標籤管理系統</h1>
                 <p class="subtitle">食材保存期限與換標追蹤</p>
             </div>
             
-            <!-- 頂部三色狀態統計 -->
+            <!-- 頂部三色狀態統計 (iOS Pill 樣式) -->
             <div class="status-summary-bar">
-                <div class="summary-card status-green">
+                <div class="summary-card status-green ios-tappable">
+                    <span class="summary-dot green-dot"></span>
                     <span class="summary-label">安全</span>
                     <span class="summary-count" id="count-green">0</span>
                     <span class="summary-unit">項</span>
                 </div>
-                <div class="summary-card status-yellow">
+                <div class="summary-card status-yellow ios-tappable">
+                    <span class="summary-dot yellow-dot"></span>
                     <span class="summary-label">即將到期</span>
                     <span class="summary-count" id="count-yellow">0</span>
                     <span class="summary-unit">項</span>
                 </div>
-                <div class="summary-card status-red">
-                    <span class="summary-label">今天丟棄／已過期</span>
+                <div class="summary-card status-red ios-tappable">
+                    <span class="summary-dot red-dot"></span>
+                    <span class="summary-label">今天丟棄／過期</span>
                     <span class="summary-count" id="count-red">0</span>
                     <span class="summary-unit">項</span>
                 </div>
             </div>
 
-            <!-- 控制按鈕區 -->
+            <!-- 右側狀態顯示 (移除右上角新增與刪除按鈕) -->
             <div class="header-actions">
                 <div class="date-badge" id="today-display">今天：載入中...</div>
-                <button type="button" class="btn btn-primary" id="btn-add-shelf">＋ 新增層架</button>
-                <button type="button" class="btn btn-secondary" id="btn-remove-last-shelf">－ 移除最後一層</button>
             </div>
         </div>
     </header>
 
     <main class="main-content">
+        <!-- 頂部操作小提示 -->
+        <div class="ios-hint-bar">
+            <span>💡 提示：按住層架向左滑動可顯示 🗑️ 垃圾桶刪除該層；底部可直接點擊虛擬框新增層架。</span>
+        </div>
+
         <!-- 層架清單容器 -->
         <div id="shelves-container" class="shelves-container">
             <div class="loading-state">載入層架資料中...</div>
         </div>
+
+        <!-- 最下方虛擬新增層架方塊 -->
+        <div id="btn-add-shelf" class="add-shelf-box ios-tappable" title="點擊新增層架">
+            <div class="add-shelf-inner">
+                <div class="add-shelf-icon">＋</div>
+                <div class="add-shelf-text">新增層架</div>
+                <div class="add-shelf-subtext">點擊在此新增一層</div>
+            </div>
+        </div>
     </main>
 
-    <!-- 新增品項彈出視窗 -->
+    <!-- 新增品項彈出視窗 (iOS 圓角卡片 Modal) -->
     <div id="item-modal" class="modal-backdrop hidden">
         <div class="modal-card">
             <div class="modal-header">
                 <h3 id="modal-title">新增品項</h3>
-                <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
+                <button type="button" class="modal-close ios-tappable" id="modal-close-btn">&times;</button>
             </div>
             <form id="item-form">
                 <input type="hidden" id="form-shelf-id" value="">
@@ -68,12 +84,12 @@
                     <div class="form-group half">
                         <label for="form-thaw-days">解凍天數（解）<span class="required">*</span></label>
                         <input type="number" id="form-thaw-days" min="0" value="1" required>
-                        <small class="form-hint">冷藏解凍所需天數（允許 0）</small>
+                        <small class="form-hint">冷藏解凍天數（允許 0）</small>
                     </div>
                     <div class="form-group half">
                         <label for="form-keep-days">保存天數（放）<span class="required">*</span></label>
                         <input type="number" id="form-keep-days" min="0" value="2" required>
-                        <small class="form-hint">開封後的保存期限</small>
+                        <small class="form-hint">開封後保存天數</small>
                     </div>
                 </div>
 
@@ -84,8 +100,8 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="modal-cancel-btn">取消</button>
-                    <button type="submit" class="btn btn-primary">確定新增</button>
+                    <button type="button" class="btn btn-secondary ios-tappable" id="modal-cancel-btn">取消</button>
+                    <button type="submit" class="btn btn-primary ios-tappable">確定新增</button>
                 </div>
             </form>
         </div>
