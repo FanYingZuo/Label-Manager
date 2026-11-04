@@ -125,15 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'shelf-card';
             card.dataset.shelfId = shelf.id;
 
-            // 綁定向左滑動手勢
-            setupShelfSwipe(card, wrapper, shelf);
-
             // 綁定垃圾桶刪除點擊
             const deleteBtn = actions.querySelector('.shelf-delete-btn');
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                handleDeleteShelf(shelf.id, shelf.name, card);
-            });
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleDeleteShelf(shelf.id, shelf.name, card);
+                });
+            }
 
             // 層架頂部 Header
             const header = document.createElement('div');
@@ -208,6 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.appendChild(actions);
             wrapper.appendChild(card);
             shelvesContainerEl.appendChild(wrapper);
+
+            // 綁定向左滑動手勢 (在 card 內部元件均掛載完畢後調用)
+            setupShelfSwipe(card, wrapper, shelf);
         });
     }
 
@@ -252,17 +254,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 綁定換標
         const retagBtn = card.querySelector('.btn-retag');
-        retagBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleRetag(item);
-        });
+        if (retagBtn) {
+            retagBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleRetag(item);
+            });
+        }
 
         // 綁定刪除品項
         const deleteBtn = card.querySelector('.btn-delete');
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleDeleteItem(item);
-        });
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleDeleteItem(item);
+            });
+        }
 
         // 綁定品項拖曳
         card.addEventListener('dragstart', (e) => {
@@ -365,23 +371,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 滑鼠事件 (Desktop Mouse Drag on Shelf Header)
         const header = card.querySelector('.shelf-header');
-        header.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'INPUT') return;
-            handleStart(e.clientX, e.clientY);
+        if (header) {
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                handleStart(e.clientX, e.clientY);
 
-            const onMouseMove = (moveEvent) => {
-                handleMove(moveEvent.clientX, moveEvent.clientY);
-            };
+                const onMouseMove = (moveEvent) => {
+                    handleMove(moveEvent.clientX, moveEvent.clientY);
+                };
 
-            const onMouseUp = () => {
-                handleEnd();
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
+                const onMouseUp = () => {
+                    handleEnd();
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
 
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
     }
 
     // 刪除層架處理（含防護檢查）
@@ -590,54 +598,58 @@ document.addEventListener('DOMContentLoaded', () => {
         itemModal.classList.add('hidden');
     }
 
-    modalCloseBtn.addEventListener('click', closeAddItemModal);
-    modalCancelBtn.addEventListener('click', closeAddItemModal);
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeAddItemModal);
+    if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeAddItemModal);
 
-    itemModal.addEventListener('click', (e) => {
-        if (e.target === itemModal) {
-            closeAddItemModal();
-        }
-    });
+    if (itemModal) {
+        itemModal.addEventListener('click', (e) => {
+            if (e.target === itemModal) {
+                closeAddItemModal();
+            }
+        });
+    }
 
     // 送出新增品項
-    itemForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const shelfId = formShelfId.value;
-        const name = formItemName.value.trim();
-        const thawDays = parseInt(formThawDays.value, 10);
-        const keepDays = parseInt(formKeepDays.value, 10);
-        const thawDate = formThawDate.value;
+    if (itemForm) {
+        itemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const shelfId = formShelfId.value;
+            const name = formItemName.value.trim();
+            const thawDays = parseInt(formThawDays.value, 10);
+            const keepDays = parseInt(formKeepDays.value, 10);
+            const thawDate = formThawDate.value;
 
-        if (!name) {
-            alert('請輸入品名');
-            return;
-        }
-
-        try {
-            const res = await fetch(`/api/shelves/${shelfId}/items`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: name,
-                    thawDays: thawDays,
-                    keepDays: keepDays,
-                    thawDate: thawDate
-                })
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || '新增品項失敗');
+            if (!name) {
+                alert('請輸入品名');
+                return;
             }
 
-            closeAddItemModal();
-            await loadData();
-            showToast(`已新增品項「${name}」！`, 'success');
-        } catch (err) {
-            console.error(err);
-            showToast(err.message, 'error');
-        }
-    });
+            try {
+                const res = await fetch(`/api/shelves/${shelfId}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        thawDays: thawDays,
+                        keepDays: keepDays,
+                        thawDate: thawDate
+                    })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || '新增品項失敗');
+                }
+
+                closeAddItemModal();
+                await loadData();
+                showToast(`已新增品項「${name}」！`, 'success');
+            } catch (err) {
+                console.error(err);
+                showToast(err.message, 'error');
+            }
+        });
+    }
 
     function escapeHtml(str) {
         if (!str) return '';
