@@ -18,6 +18,7 @@ import com.example.labelmanager.repository.ShelfRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,10 +30,12 @@ public class LabelManagerService {
 
     private final ShelfRepository shelfRepository;
     private final ItemRepository itemRepository;
+    private final Clock clock;
 
-    public LabelManagerService(ShelfRepository shelfRepository, ItemRepository itemRepository) {
+    public LabelManagerService(ShelfRepository shelfRepository, ItemRepository itemRepository, Clock clock) {
         this.shelfRepository = shelfRepository;
         this.itemRepository = itemRepository;
+        this.clock = clock;
     }
 
     private void validateItemName(String name) {
@@ -82,7 +85,7 @@ public class LabelManagerService {
             if (!shelves.isEmpty()) {
                 Long shelf1Id = shelves.get(0).getId();
                 Long shelf2Id = shelves.size() > 1 ? shelves.get(1).getId() : shelf1Id;
-                LocalDate today = LocalDate.now();
+                LocalDate today = LocalDate.now(clock);
 
                 // 範例品項（虛構品項）
                 itemRepository.save(new ItemEntity(shelf1Id, "火腿", 1, 2, today, 0));
@@ -94,7 +97,7 @@ public class LabelManagerService {
 
     @Transactional(readOnly = true)
     public List<ShelfResponse> getAllShelves(LocalDate today) {
-        LocalDate current = (today != null) ? today : LocalDate.now();
+        LocalDate current = (today != null) ? today : LocalDate.now(clock);
         List<ShelfEntity> shelves = shelfRepository.findAllByOrderBySortOrderAsc();
         List<ShelfResponse> result = new ArrayList<>();
 
@@ -172,7 +175,7 @@ public class LabelManagerService {
 
         ShelfEntity saved = shelfRepository.save(shelf);
         List<ItemResponse> items = itemRepository.findByShelfIdOrderBySortOrderAsc(saved.getId()).stream()
-                .map(item -> toItemResponse(item, LocalDate.now()))
+                .map(item -> toItemResponse(item, LocalDate.now(clock)))
                 .toList();
 
         return new ShelfResponse(saved.getId(), saved.getName(), saved.getSortOrder(), items);
@@ -186,7 +189,7 @@ public class LabelManagerService {
         validateThawDays(request.thawDays());
         validateKeepDays(request.keepDays());
 
-        LocalDate current = (today != null) ? today : LocalDate.now();
+        LocalDate current = (today != null) ? today : LocalDate.now(clock);
         LocalDate thawDate = (request.thawDate() != null) ? request.thawDate() : current;
 
         List<ItemEntity> existing = itemRepository.findByShelfIdOrderBySortOrderAsc(shelfId);
@@ -202,7 +205,7 @@ public class LabelManagerService {
         ItemEntity item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("品項不存在: " + itemId));
 
-        LocalDate current = (today != null) ? today : LocalDate.now();
+        LocalDate current = (today != null) ? today : LocalDate.now(clock);
         LocalDate thawDate = (newThawDate != null) ? newThawDate : current;
 
         item.setThawDate(thawDate);
@@ -289,7 +292,7 @@ public class LabelManagerService {
 
     @Transactional(readOnly = true)
     public StatusSummary getStatusSummary(LocalDate today) {
-        LocalDate current = (today != null) ? today : LocalDate.now();
+        LocalDate current = (today != null) ? today : LocalDate.now(clock);
         List<ItemEntity> allItems = itemRepository.findAll();
 
         int green = 0;

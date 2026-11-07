@@ -16,6 +16,6 @@ public class DataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        labelManagerService.initSampleDataIfEmpty();
+        labelManagerService.initDefaultShelvesIfEmpty();
     }
 }
