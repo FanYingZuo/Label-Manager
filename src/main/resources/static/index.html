@@ -598,6 +598,30 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
   }
 
 
+  let currentPage = 1;
+  const SHELVES_PER_PAGE = 4;
+
+  function renderPages() {
+    const pagesNav = $('#pages');
+    pagesNav.innerHTML = '';
+
+    if (shelves.length === 0) return;
+
+    const totalPages = Math.ceil(shelves.length / SHELVES_PER_PAGE);
+
+    for (let p = 1; p <= totalPages; p++) {
+      const btn = document.createElement('button');
+      btn.className = 'page-tab';
+      btn.setAttribute('aria-selected', p === currentPage);
+      btn.textContent = p;
+      btn.addEventListener('click', () => {
+        currentPage = p;
+        render();
+      });
+      pagesNav.appendChild(btn);
+    }
+  }
+
   function render() {
     $('#today').textContent = `今天 ${todayStr.slice(5).replace('-', '/')}`;
 
@@ -610,10 +634,16 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     $('#cnt-yellow').textContent = c.yellow;
     $('#cnt-red').textContent = c.red;
 
+    renderPages();
+
     const box = $('#shelves');
     box.innerHTML = '';
 
-    shelves.forEach(s => {
+    const start = (currentPage - 1) * SHELVES_PER_PAGE;
+    const end = start + SHELVES_PER_PAGE;
+    const visibleShelves = shelves.slice(start, end);
+
+    visibleShelves.forEach(s => {
       const list = items.filter(it => it.shelfId === s.id);
       const sec = document.createElement('section');
       sec.className = 'shelf';
@@ -673,6 +703,7 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     });
 
     if (shelves.length === 0) {
+      renderPages();
       box.innerHTML = '<p class="empty">目前沒有層架，請點下方「新增層架」。</p>';
     }
     fitNames();
