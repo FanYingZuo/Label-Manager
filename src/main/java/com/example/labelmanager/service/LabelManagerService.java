@@ -30,6 +30,38 @@ public class LabelManagerService {
         this.itemRepository = itemRepository;
     }
 
+    private void validateItemName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("品名不可為空");
+        }
+        int length = name.trim().length();
+        if (length < 1 || length > 30) {
+            throw new IllegalArgumentException("品名長度必須介於 1-30 字");
+        }
+    }
+
+    private void validateThawDays(int days) {
+        if (days < 0 || days > 30) {
+            throw new IllegalArgumentException("解凍天數必須介於 0-30 天");
+        }
+    }
+
+    private void validateKeepDays(int days) {
+        if (days < 0 || days > 365) {
+            throw new IllegalArgumentException("保存天數必須介於 0-365 天");
+        }
+    }
+
+    private void validateShelfName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("層架名稱不可為空");
+        }
+        int length = name.trim().length();
+        if (length < 1 || length > 20) {
+            throw new IllegalArgumentException("層架名稱長度必須介於 1-20 字");
+        }
+    }
+
     public void initDefaultShelvesIfEmpty() {
         if (shelfRepository.count() == 0) {
             for (int i = 1; i <= ShelfManager.DEFAULT_SHELVES_COUNT; i++) {
@@ -77,9 +109,13 @@ public class LabelManagerService {
                 .map(s -> s.getSortOrder() + 1)
                 .orElse(1);
 
-        String shelfName = (name == null || name.isBlank())
-                ? ShelfManager.defaultShelfName(nextOrder)
-                : name.trim();
+        String shelfName;
+        if (name == null || name.isBlank()) {
+            shelfName = ShelfManager.defaultShelfName(nextOrder);
+        } else {
+            shelfName = name.trim();
+            validateShelfName(shelfName);
+        }
 
         ShelfEntity saved = shelfRepository.save(new ShelfEntity(shelfName, nextOrder));
         return new ShelfResponse(saved.getId(), saved.getName(), saved.getSortOrder(), List.of());
@@ -124,7 +160,9 @@ public class LabelManagerService {
         if (newName == null || newName.isBlank()) {
             shelf.setName(ShelfManager.defaultShelfName(shelf.getSortOrder()));
         } else {
-            shelf.setName(newName.trim());
+            String trimmedName = newName.trim();
+            validateShelfName(trimmedName);
+            shelf.setName(trimmedName);
         }
 
         ShelfEntity saved = shelfRepository.save(shelf);
@@ -139,15 +177,9 @@ public class LabelManagerService {
         ShelfEntity shelf = shelfRepository.findById(shelfId)
                 .orElseThrow(() -> new IllegalArgumentException("層架不存在: " + shelfId));
 
-        if (request.name() == null || request.name().isBlank()) {
-            throw new IllegalArgumentException("品名不可為空");
-        }
-        if (request.thawDays() < 0) {
-            throw new IllegalArgumentException("解凍天數不可為負數");
-        }
-        if (request.keepDays() < 0) {
-            throw new IllegalArgumentException("保存天數不可為負數");
-        }
+        validateItemName(request.name());
+        validateThawDays(request.thawDays());
+        validateKeepDays(request.keepDays());
 
         LocalDate current = (today != null) ? today : LocalDate.now();
         LocalDate thawDate = (request.thawDate() != null) ? request.thawDate() : current;
