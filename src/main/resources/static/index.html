@@ -602,7 +602,10 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     $('#today').textContent = `今天 ${todayStr.slice(5).replace('-', '/')}`;
 
     const c = { green: 0, yellow: 0, red: 0 };
-    items.forEach(it => c[it.status]++);
+    items.forEach(it => {
+      const key = it.statusColor.toLowerCase();
+      c[key]++;
+    });
     $('#cnt-green').textContent = c.green;
     $('#cnt-yellow').textContent = c.yellow;
     $('#cnt-red').textContent = c.red;
