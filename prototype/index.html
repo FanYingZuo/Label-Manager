@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>標籤管理</title>
+<style>
+/* ---------- 色彩 Tokens（狀態色與黑色品名區為既定配色，不更動） ---------- */
+:root{
+  --bg:#F2F2F7;
+  --surface:#FFFFFF;
+  --surface-2:#F7F7FA;
+  --label:#1C1C1E;
+  --label-2:rgba(60,60,67,.62);
+  --label-3:rgba(60,60,67,.32);
+  --separator:rgba(60,60,67,.14);
+  --fill:rgba(118,118,128,.10);
+  --blue:#007AFF;
+  --blue-d:#0062CC;
+  --green:#34C759;  --green-d:#248A3D;
+  --yellow:#FF9500; --yellow-d:#D67A00;
+  --red:#FF3B30;    --red-d:#D7261E;
+  --overlay:rgba(0,0,0,.25);
+  --glass:rgba(255,255,255,.75);
+  --radius-lg:16px;
+  --radius-md:12px;
+  --radius-sm:8px;
+  --shadow-lift:0 12px 32px rgba(0,0,0,.12);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1C1C1E;
+    --surface:#2C2C2E;
+    --surface-2:#242426;
+    --label:#F2F2F7;
+    --label-2:rgba(235,235,245,.62);
+    --label-3:rgba(235,235,245,.30);
+    --separator:rgba(84,84,88,.65);
+    --fill:rgba(120,120,128,.24);
+    --overlay:rgba(0,0,0,.4);
+    --glass:rgba(44,44,46,.72);
+    --shadow-lift:0 12px 32px rgba(0,0,0,.48);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1C1C1E;
+  --surface:#2C2C2E;
+  --surface-2:#242426;
+  --label:#F2F2F7;
+  --label-2:rgba(235,235,245,.62);
+  --label-3:rgba(235,235,245,.30);
+  --separator:rgba(84,84,88,.65);
+  --fill:rgba(120,120,128,.24);
+  --overlay:rgba(0,0,0,.4);
+  --glass:rgba(44,44,46,.72);
+  --shadow-lift:0 12px 32px rgba(0,0,0,.48);
+  color-scheme:dark;
+}
+
+/* ---------- 基礎 ---------- */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang TC","Noto Sans TC",sans-serif;
+  font-size:16px;line-height:1.5;color:var(--label);
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:6px}
+.hidden{display:none!important}
+.busy button{pointer-events:none;opacity:.6}
+.ico{width:20px;height:20px;flex:none;display:block}
+.tabular{font-variant-numeric:tabular-nums}
+
+/* ---------- 頂部 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;background:var(--bg);
+  border-bottom:.5px solid var(--separator);
+  padding-top:env(safe-area-inset-top,0px);
+}
+.bar{max-width:1120px;margin:0 auto;padding:16px max(24px,env(safe-area-inset-right,0px)) 16px max(24px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+.title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .ico{color:var(--blue);width:28px;height:28px}
+.brand h1{font-size:28px;line-height:34px;font-weight:700;letter-spacing:-.4px}
+.proto{display:block;font-size:13px;color:var(--label-2);margin-top:2px}
+.date{font-size:13px;font-weight:500;color:var(--label-2);background:var(--fill);padding:4px 10px;border-radius:var(--radius-sm);white-space:nowrap}
+
+.counts{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  background:var(--surface);border-radius:var(--radius-lg);overflow:hidden;
+}
+.count{padding:12px 16px;display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.count + .count{border-left:.5px solid var(--separator)}
+.count-num{font-size:28px;line-height:34px;font-weight:700;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+.count-label{font-size:13px;color:var(--label-2)}
+.count-num.green{color:var(--green-d)}
+.count-num.yellow{color:var(--yellow-d)}
+.count-num.red{color:var(--red-d)}
+
+/* ---------- 主區 ---------- */
+main{max-width:1120px;margin:0 auto;padding:24px max(24px,env(safe-area-inset-right,0px)) 64px max(24px,env(safe-area-inset-left,0px))}
+.hint{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:18px;color:var(--label-2);margin-bottom:24px}
+.hint .ico{width:16px;height:16px;margin-top:1px}
+
+#shelves{display:flex;flex-direction:column;gap:24px}
+.empty{font-size:15px;color:var(--label-2);text-align:center;padding:48px 0}
+
+/* 層架：分組列表樣式 */
+.shelf{background:var(--surface);border-radius:var(--radius-lg);overflow:hidden;min-width:0}
+.shelf-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 16px;border-bottom:.5px solid var(--separator);
+}
+.shelf-title{display:flex;align-items:baseline;gap:12px;min-width:0;flex-wrap:wrap}
+.shelf-name{
+  font-size:17px;font-weight:600;letter-spacing:-.2px;color:var(--label);
+  background:transparent;border:0;border-bottom:1px solid transparent;border-radius:0;
+  padding:4px 0;width:240px;max-width:100%;
+}
+.shelf-name:hover{border-bottom-color:var(--separator)}
+.shelf-name:focus{border-bottom-color:var(--blue);outline:none}
+.muted{font-size:13px;color:var(--label-2)}
+.shelf-handle{
+  width:32px;height:32px;display:grid;place-items:center;border-radius:var(--radius-sm);
+  color:var(--label-2);cursor:grab;flex:none;
+}
+.shelf-handle:hover{background:var(--fill);color:var(--label)}
+.shelf-handle:active{cursor:grabbing}
+.shelf-handle .ico{width:20px;height:20px}
+.shelf.dragging{opacity:.4}
+
+.rack{
+  padding:16px;display:flex;flex-wrap:wrap;gap:16px;min-height:188px;align-items:stretch;
+  transition:background .2s ease;border-radius:0;
+}
+.rack.over{background:rgba(0,122,255,.06)}
+
+/* 頁面切換：分段控制（iOS 風格） */
+.pages{display:flex;align-items:center;gap:8px;margin:0 0 16px;overflow-x:auto;scrollbar-width:none}
+.pages::-webkit-scrollbar{display:none}
+.page-tab{
+  flex:none;padding:6px 14px;border-radius:999px;background:var(--fill);
+  color:var(--label-2);font-size:15px;font-weight:500;white-space:nowrap;
+  transition:background .2s ease,color .2s ease,box-shadow .2s ease;
+}
+.page-tab{cursor:pointer;user-select:none}
+.page-tab[aria-selected="true"]{background:var(--surface);color:var(--label);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.pt-n{margin-left:6px;font-size:13px;opacity:.6}
+.pt-input{
+  width:7em;border:0;background:transparent;font:inherit;color:var(--label);
+  text-align:center;outline:none;border-bottom:1px solid var(--blue);
+}
+.pt-input::placeholder{color:var(--label-3)}
+.page-add{flex:none;padding:6px 12px;color:var(--blue);font-size:15px;font-weight:600;white-space:nowrap}
+.page-del{flex:none;margin-left:auto;padding:6px 4px;color:var(--red-d);font-size:15px;font-weight:500;white-space:nowrap}
+
+/* 品項卡：上方 30% 黑底白字；下方日期三行 */
+.item-card{
+  position:relative;
+  width:200px;height:220px;max-width:100%;
+  background:var(--surface);border:1.5px solid var(--separator);border-radius:var(--radius-md);
+  overflow:hidden;display:flex;flex-direction:column;
+  cursor:default;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  transition:opacity .2s ease,border-color .2s ease;
+}
+.item-card:hover{border-color:var(--label-3)}
+.item-card.dragging{opacity:.4}
+.item-card.green{border-color:rgba(52,199,89,.5)}
+.item-card.yellow{border-color:rgba(255,149,0,.55)}
+.item-card.red{border-color:rgba(255,59,48,.55)}
+
+.ic-band{
+  flex:0 0 30%;background:#000;color:#fff;
+  display:flex;align-items:center;gap:8px;padding:0 4px 0 12px;min-width:0;
+}
+.ic-name{flex:1;min-width:0;font-size:16px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden}
+.ic-label{font-size:13px;font-weight:500;opacity:.7}
+.ic-spec{font-size:12px;font-weight:500;color:#8E8E93;white-space:nowrap}
+.ic-x{
+  width:28px;height:28px;display:grid;place-items:center;border-radius:50%;
+  color:#fff;opacity:.6;flex:none;
+}
+.ic-x:hover{opacity:1;background:rgba(255,255,255,.14)}
+.ic-x .ico{width:16px;height:16px}
+
+.ic-body{flex:1;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:0}
+.ic-dates{display:flex;flex-direction:column;gap:4px}
+.ic-dates div{display:flex;align-items:baseline;gap:8px;font-size:13px;line-height:18px}
+.ic-dates span{width:60px;flex:none;color:var(--label-2);white-space:nowrap}
+.ic-dates b{font-weight:500;font-variant-numeric:tabular-nums;color:var(--label)}
+
+.ic-foot{font-size:13px;font-weight:600;line-height:18px}
+.ic-status.green{color:var(--green-d)}
+.ic-status.yellow{color:var(--yellow-d)}
+.ic-status.red{color:var(--red-d)}
+
+.retag{
+  width:100%;height:32px;border-radius:var(--radius-sm);
+  background:var(--blue);color:#fff;font-size:15px;font-weight:600;
+  transition:transform .15s ease,opacity .15s ease;
+}
+.retag:hover{background:var(--blue-d)}
+.retag:active,.add-item:active,.add-shelf:active,.alert-btn:active,.text-btn:active{transform:scale(.97);opacity:.75}
+
+.add-item{
+  width:130px;height:220px;flex:none;
+  border:1px dashed var(--label-3);border-radius:var(--radius-md);
+  color:var(--blue);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  font-size:15px;font-weight:500;
+  transition:transform .15s ease,background .2s ease;
+}
+.add-item:hover{background:rgba(0,122,255,.06)}
+
+.add-shelf{
+  width:100%;margin-top:24px;padding:16px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--surface);border-radius:var(--radius-lg);
+  color:var(--blue);font-size:17px;font-weight:600;
+  transition:transform .15s ease,opacity .15s ease;
+}
+.add-shelf:hover{background:var(--surface-2)}
+
+/* ---------- 拖曳中的卡片與占位格 ---------- */
+.slot{
+  flex:none;border:1.5px dashed var(--label-3);border-radius:var(--radius-md);
+  background:rgba(120,120,128,.08);
+}
+#drag-layer{position:fixed;inset:0;pointer-events:none;z-index:1500}
+body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cursor:grabbing!important}
+.lifted{
+  position:fixed;left:0;top:0;margin:0;z-index:1500;
+  transform-origin:0 0;pointer-events:none;
+  box-shadow:0 22px 44px rgba(0,0,0,.28),0 6px 14px rgba(0,0,0,.18);
+  transition:none;
+}
+
+/* ---------- 彈窗：底部面板（手機）／置中面板（桌面） ---------- */
+.modal{
+  position:fixed;inset:0;background:var(--overlay);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:flex-end;justify-content:center;z-index:1000;
+  animation:fadeIn .25s ease-out;
+}
+.modal.closing{animation:fadeOut .2s ease-in forwards}
+/* 玻璃面板：半透明、模糊背景、極淡白邊、柔和陰影 */
+.sheet,.alert{
+  background:var(--glass);
+  backdrop-filter:blur(25px) saturate(180%);-webkit-backdrop-filter:blur(25px) saturate(180%);
+  border:.5px solid rgba(255,255,255,.35);
+  box-shadow:0 10px 36px rgba(0,0,0,.16);
+  animation:modalIn .3s cubic-bezier(.34,1.3,.64,1);
+}
+.modal.closing .sheet,.modal.closing .alert{animation:modalOut .2s ease-in forwards}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+@keyframes modalIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+@keyframes modalOut{from{opacity:1;transform:none}to{opacity:0;transform:scale(.96)}}
+.sheet{
+  width:100%;max-width:520px;
+  border-radius:20px 20px 0 0;
+  padding-bottom:env(safe-area-inset-bottom,0px);overflow:hidden;
+}
+.sheet-bar{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  padding:12px 16px;background:transparent;border-bottom:.5px solid var(--separator);
+}
+.sheet-bar h3{font-size:17px;font-weight:600;text-align:center}
+.sheet-bar .text-btn:last-child{justify-self:end}
+.text-btn{font-size:17px;color:var(--blue);padding:4px 0;border-radius:6px}
+.text-btn.strong{font-weight:600}
+.sheet-body{padding:16px;display:flex;flex-direction:column;gap:8px}
+.group{background:var(--surface);border-radius:var(--radius-lg);overflow:hidden}
+.field + .field{border-top:.5px solid var(--separator)}
+.row{display:flex;align-items:center;gap:12px;padding:0 16px;min-height:48px}
+.row label{font-size:16px;color:var(--label);white-space:nowrap;flex:none}
+.row input{
+  flex:1;min-width:0;border:0;background:transparent;font-size:16px;text-align:right;
+  padding:12px 0;outline:none;color:var(--label);
+}
+.row input::placeholder{color:var(--label-3)}
+.row input:focus{color:var(--label)}
+.field:focus-within .row label{color:var(--blue)}
+.unit{font-size:16px;color:var(--label-2);flex:none}
+.err{display:block;font-size:13px;line-height:18px;color:var(--red-d);padding:0 16px 8px}
+.err:empty{display:none}
+.field.invalid .row input{color:var(--red-d)}
+.hint-row{padding:8px 16px 0;font-size:13px;color:var(--label-2)}
+
+/* 確認視窗：iOS Alert */
+#ask{align-items:center;padding:16px}
+.alert{min-width:270px;max-width:calc(100vw - 32px);border-radius:20px;overflow:hidden;text-align:center}
+.alert-msg{padding:20px 16px;font-size:15px;line-height:1.4;white-space:nowrap;overflow:hidden;font-weight:600}
+.alert-actions{display:grid;grid-template-columns:1fr 1fr;border-top:.5px solid var(--separator)}
+.alert-btn{padding:12px 0;font-size:17px;color:var(--blue)}
+.alert-btn + .alert-btn{border-left:.5px solid var(--separator)}
+.alert-btn.strong{font-weight:600}
+.alert-btn.destructive{color:var(--red-d)}
+
+/* 提示：HUD 膠囊 */
+.toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  background:rgba(28,28,30,.92);color:#fff;
+  padding:10px 16px;border-radius:var(--radius-md);
+  font-size:15px;font-weight:500;line-height:1.4;text-align:center;
+  max-width:calc(100vw - 32px);box-shadow:var(--shadow-lift);z-index:2000;
+  transition:opacity .2s ease,transform .2s ease;
+}
+.toast.success{background:rgba(36,138,61,.94)}
+.toast.error{background:rgba(215,38,30,.94)}
+.toast.hidden{opacity:0;transform:translate(-50%,8px);pointer-events:none;display:block!important}
+
+/* ---------- 桌面版 ---------- */
+@media (min-width:640px){
+  .modal{align-items:center;padding:24px}
+  .sheet{border-radius:20px}
+  .brand h1{font-size:34px;line-height:40px}
+  .count-num{font-size:34px;line-height:40px}
+}
+
+/* ---------- 手機版 ---------- */
+@media (max-width:600px){
+  .bar{padding:12px 16px}
+  main{padding:16px 16px 48px}
+  .brand h1{font-size:24px;line-height:30px}
+  .count{padding:12px}
+  .count-num{font-size:24px;line-height:30px}
+  .count-label{font-size:12px}
+  .shelf-title{flex:1;min-width:0;flex-wrap:nowrap}
+  .shelf-name{width:auto;flex:1;min-width:0}
+  .shelf-head{flex-wrap:nowrap}
+  .item-card{width:100%}
+  .add-item{width:100%;height:auto;min-height:64px;flex-direction:row}
+  .rack{padding:12px;gap:12px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="bar">
+    <div class="title-row">
+      <div>
+        <div class="brand">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+          <h1>標籤管理</h1>
+        </div>
+        <span class="proto">原型：資料只存在此頁面，重新整理會回到範例</span>
+      </div>
+      <div class="date" id="today"></div>
+    </div>
+    <div class="counts" role="group" aria-label="狀態統計">
+      <div class="count"><span class="count-num green tabular" id="cnt-green">0</span><span class="count-label">安全</span></div>
+      <div class="count"><span class="count-num yellow tabular" id="cnt-yellow">0</span><span class="count-label">即將到期</span></div>
+      <div class="count"><span class="count-num red tabular" id="cnt-red">0</span><span class="count-label">即將／已過期</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="hint">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    <span>點擊層架右側的 ☰ 可刪除該層（需先清空品項）；拖曳 ☰ 可調整層架順序。按「換標」會把解凍日改為今天。</span>
+  </p>
+  <nav class="pages" id="pages" aria-label="頁面"></nav>
+  <div id="shelves"></div>
+  <button id="btn-add-shelf" class="add-shelf" type="button">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    <span>新增層架</span>
+  </button>
+</main>
+
+<!-- 新增層架（先命名才建立） -->
+<div id="shelf-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shelf-title">
+  <div class="sheet">
+    <div class="sheet-bar">
+      <button type="button" class="text-btn" data-close-shelf>取消</button>
+      <h3 id="shelf-title">新增層架</h3>
+      <button type="submit" form="shelf-form" class="text-btn strong">建立</button>
+    </div>
+    <form id="shelf-form" class="sheet-body" novalidate>
+      <div class="group">
+        <div class="field">
+          <div class="row">
+            <label for="s-name">將此層架命名為</label>
+            <input id="s-name" maxlength="20" placeholder="例如：冷藏上層" autocomplete="off">
+          </div>
+          <small class="err" id="e-shelf"></small>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 新增品項 -->
+<div id="add" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="add-title">
+  <div class="sheet">
+    <div class="sheet-bar">
+      <button type="button" class="text-btn" data-close>取消</button>
+      <h3 id="add-title">新增品項</h3>
+      <button type="submit" form="add-form" class="text-btn strong">新增</button>
+    </div>
+    <form id="add-form" class="sheet-body" novalidate>
+      <div class="group">
+        <div class="field">
+          <div class="row">
+            <label for="f-name">品名</label>
+            <input id="f-name" maxlength="30" placeholder="例如：火腿、BBQ醬" autocomplete="off">
+          </div>
+          <small class="err" id="e-name"></small>
+        </div>
+        <div class="field">
+          <div class="row">
+            <label for="f-thaw">解凍天數（解）</label>
+            <input id="f-thaw" type="text" inputmode="numeric" maxlength="3" value="1">
+            <span class="unit">天</span>
+          </div>
+          <small class="err" id="e-thaw"></small>
+        </div>
+        <div class="field">
+          <div class="row">
+            <label for="f-keep">保存天數（放）</label>
+            <input id="f-keep" type="text" inputmode="numeric" maxlength="3" value="2">
+            <span class="unit">天</span>
+          </div>
+          <small class="err" id="e-keep"></small>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 確認視窗 -->
+<div id="ask" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="alert">
+    <p id="ask-msg" class="alert-msg"></p>
+    <div class="alert-actions">
+      <button id="ask-cancel" class="alert-btn" type="button">取消</button>
+      <button id="ask-ok" class="alert-btn strong" type="button">確定</button>
+    </div>
+  </div>
+</div>
+
+<div id="drag-layer"></div>
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const pad = n => String(n).padStart(2, '0');
+  const DAY = 864e5;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const svg = body => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+  const ICON = {
+    plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+    x: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+    handle: svg('<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>'),
+  };
+
+  /* ---------- 日期（原型用瀏覽器時間；正式版改由後端提供） ---------- */
+  function today() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function addDays(s, n) {
+    return new Date(Date.parse(s + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
+  }
+  function diffDays(a, b) {
+    return Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / DAY);
+  }
+  const md = s => s.slice(5).replace('-', '/');
+
+  /* 開封日 = 解凍日 + 解凍天數；丟棄日 = 開封日 + 保存天數；剩餘 = 丟棄日 − 今天 */
+  function statusOf(it, t) {
+    const discard = addDays(it.thawDate, it.thaw + it.keep);
+    const r = diffDays(discard, t);
+    if (r >= 2) return { key: 'green',  text: `剩餘${r}日`, discard };
+    if (r === 1) return { key: 'yellow', text: '剩餘1日',    discard };
+    if (r === 0) return { key: 'red',    text: '即將過期',   discard };
+    return            { key: 'red',    text: '已過期',     discard };
+  }
+
+  /* ---------- 範例資料（假資料） ---------- */
+  let seq = 10;
+  const T = today();
+  const PAGE_PLACEHOLDER = '點選已改名...';
+  let pages = [
+    { id: 'p1', name: PAGE_PLACEHOLDER },
+    { id: 'p2', name: PAGE_PLACEHOLDER },
+  ];
+  let currentPage = 'p1';
+  let shelves = [
+    { id: 's1', name: '範例層架 1', pageId: 'p1' },
+    { id: 's2', name: '範例層架 2', pageId: 'p1' },
+    { id: 's3', name: '範例層架 3', pageId: 'p1' },
+    { id: 's4', name: '範例層架 4', pageId: 'p2' },
+    { id: 's5', name: '範例層架 5', pageId: 'p2' },
+    { id: 's6', name: '範例層架 6', pageId: 'p2' },
+  ];
+  const visibleShelves = () => shelves.filter(s => s.pageId === currentPage);
+  let items = [
+    { id: 'i1', shelfId: 's1', name: '火腿',           thaw: 1, keep: 2, thawDate: T },
+    { id: 'i2', shelfId: 's1', name: 'BBQ醬',          thaw: 1, keep: 7, thawDate: T },
+    { id: 'i3', shelfId: 's3', name: '鹽烤鱈魚',       thaw: 1, keep: 1, thawDate: addDays(T, -2) },
+    { id: 'i4', shelfId: 's4', name: '牛肉片（範例）', thaw: 1, keep: 2, thawDate: addDays(T, -5) },
+  ];
+
+  let shelfDragId = null;
+  let busy = false;
+  let addShelfId = null;
+
+  /* ---------- 操作輔助 ---------- */
+  let toastTimer = null;
+  function toast(msg, type = 'info') {
+    const el = $('#toast');
+    el.textContent = msg;
+    el.className = `toast ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast hidden'; }, 2800);
+  }
+
+  // 所有會改資料的動作都走這裡：防連點 + 完成後重畫
+  function run(fn) {
+    if (busy) return;
+    busy = true;
+    document.body.classList.add('busy');
+    try { fn(); }
+    catch (err) { toast(err.message || '操作失敗', 'error'); }
+    finally {
+      busy = false;
+      document.body.classList.remove('busy');
+      render();
+    }
+  }
+
+  // 確認視窗文字不換行：放不下就逐步縮小字級，仍不夠則省略
+  function fitAlert() {
+    const el = $('#ask-msg');
+    let fs = 15;
+    el.style.fontSize = fs + 'px';
+    while (el.scrollWidth > el.clientWidth && fs > 11) {
+      fs -= 1;
+      el.style.fontSize = fs + 'px';
+    }
+  }
+
+  // 彈窗開關：開啟淡入＋縮放；關閉淡出＋微縮。關閉期間鎖住背景捲動
+  function showModal(el) {
+    clearTimeout(el._hideT);
+    el.classList.remove('closing', 'hidden');
+    document.body.style.overflow = 'hidden';
+  }
+  function hideModal(el) {
+    if (el.classList.contains('hidden') || el.classList.contains('closing')) return;
+    el.classList.add('closing');
+    el._hideT = setTimeout(() => {
+      el.classList.remove('closing');
+      el.classList.add('hidden');
+      document.body.style.overflow = '';
+    }, 200);
+  }
+
+  function ask(msg, okText) {
+    return new Promise(resolve => {
+      $('#ask-msg').textContent = msg;
+      const okBtn = $('#ask-ok');
+      const cancelBtn = $('#ask-cancel');
+      okBtn.textContent = okText;
+      okBtn.classList.toggle('destructive', okText === '刪除');
+      showModal($('#ask'));
+      fitAlert();
+      okBtn.focus();
+      const done = v => {
+        hideModal($('#ask'));
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+        resolve(v);
+      };
+      okBtn.onclick = () => done(true);
+      cancelBtn.onclick = () => done(false);
+    });
+  }
+
+  /* ---------- 移動品項（同層／跨層）：targetIndex = 把被拖的品項拿掉後，它在目標層的位置 ---------- */
+  function moveItem(id, targetShelfId, targetIndex) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    items = items.filter(i => i !== item);
+    const targetList = items.filter(i => i.shelfId === targetShelfId);
+    item.shelfId = targetShelfId;
+    const idx = Math.max(0, Math.min(targetIndex, targetList.length));
+    if (targetList.length === 0) {
+      items.push(item);
+    } else if (idx >= targetList.length) {
+      items.splice(items.indexOf(targetList[targetList.length - 1]) + 1, 0, item);
+    } else {
+      items.splice(items.indexOf(targetList[idx]), 0, item);
+    }
+  }
+
+
+  /* ---------- 畫面 ---------- */
+  function render() {
+    $('#today').textContent = `今天 ${md(today())}`;
+
+    const t = today();
+    const c = { green: 0, yellow: 0, red: 0 };
+    items.forEach(it => c[statusOf(it, t).key]++);
+    $('#cnt-green').textContent = c.green;
+    $('#cnt-yellow').textContent = c.yellow;
+    $('#cnt-red').textContent = c.red;
+
+    renderPages();
+    const box = $('#shelves');
+    box.innerHTML = '';
+
+    visibleShelves().forEach(s => {
+      const list = items.filter(it => it.shelfId === s.id);
+      const sec = document.createElement('section');
+      sec.className = 'shelf';
+      sec.dataset.shelfId = s.id;
+      sec.innerHTML = `
+        <div class="shelf-head">
+          <div class="shelf-title">
+            <input class="shelf-name" maxlength="20" value="${esc(s.name)}" aria-label="層架名稱" title="點擊可改名">
+          </div>
+          <button type="button" class="shelf-handle" title="拖曳可調整順序；點擊可刪除此層" aria-label="拖曳排序或刪除此層">${ICON.handle}</button>
+        </div>
+        <div class="rack" data-shelf-id="${esc(s.id)}"></div>`;
+
+      // 改名：不可留空
+      const nameIn = sec.querySelector('.shelf-name');
+      nameIn.addEventListener('change', () => {
+        const v = nameIn.value.trim();
+        if (!v) {
+          toast('層架名稱不可為空', 'error');
+          nameIn.value = s.name;
+          return;
+        }
+        run(() => { s.name = v; });
+      });
+      nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') nameIn.blur(); });
+
+      const handle = sec.querySelector('.shelf-handle');
+
+      // 刪除層架：點擊 ☰；有品項時擋下
+      handle.addEventListener('click', async () => {
+        if (suppressClick) return;
+        if (list.length) {
+          toast(`「${s.name}」仍有 ${list.length} 個品項，請先移走或刪除`, 'error');
+          return;
+        }
+        if (!await ask(`確定要刪除「${s.name}」嗎？`, '刪除')) return;
+        run(() => {
+          shelves = shelves.filter(x => x !== s);
+          toast(`已刪除「${s.name}」`, 'success');
+        });
+      });
+
+      // 品項陳列區
+      const rack = sec.querySelector('.rack');
+      list.forEach(it => rack.appendChild(itemCard(it)));
+
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'add-item';
+      add.innerHTML = `${ICON.plus}<span>新增品項</span>`;
+      add.addEventListener('click', () => openAdd(s.id, s.name));
+      rack.appendChild(add);
+
+      box.appendChild(sec);
+    });
+
+    if (visibleShelves().length === 0) {
+      box.innerHTML = '<p class="empty">目前沒有層架，請點下方「新增層架」。</p>';
+    }
+    fitNames();
+  }
+
+  // 頁籤改名：點選目前頁籤即進入編輯；Enter 或離開輸入框即儲存，Esc 取消；留空則回到預設文字
+  function startRename(tab, pg) {
+    if (tab.querySelector('input')) return;
+    const nameEl = tab.querySelector('.pt-name');
+    const inp = document.createElement('input');
+    inp.className = 'pt-input';
+    inp.maxLength = 20;
+    inp.placeholder = PAGE_PLACEHOLDER;
+    inp.value = pg.name === PAGE_PLACEHOLDER ? '' : pg.name;
+    nameEl.replaceWith(inp);
+    inp.focus();
+    inp.select();
+    let done = false;
+    const finish = save => {
+      if (done) return;
+      done = true;
+      if (save) {
+        const v = inp.value.trim();
+        run(() => { pg.name = v || PAGE_PLACEHOLDER; });
+      } else {
+        render();
+      }
+    };
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') inp.blur();
+      if (e.key === 'Escape') finish(false);
+    });
+    inp.addEventListener('blur', () => finish(true));
+  }
+
+  function renderPages() {
+    const nav = $('#pages');
+    nav.innerHTML = '';
+    pages.forEach(pg => {
+      const b = document.createElement('div');
+      b.className = 'page-tab';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(pg.id === currentPage));
+      b.innerHTML = `<span class="pt-name">${esc(pg.name)}</span>`;
+      b.addEventListener('click', () => {
+        if (pg.id !== currentPage) { currentPage = pg.id; render(); return; }
+        startRename(b, pg);          // 再點一次目前頁籤即可改名
+      });
+      nav.appendChild(b);
+    });
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'page-add';
+    add.textContent = '＋ 新增頁';
+    add.addEventListener('click', () => run(() => {
+      const id = 'p' + (++seq);
+      pages.push({ id, name: PAGE_PLACEHOLDER });
+      currentPage = id;
+    }));
+    nav.appendChild(add);
+
+    // 目前頁沒有層架且不是唯一的頁面時，可刪除此頁
+    const cur = pages.find(p => p.id === currentPage);
+    if (pages.length > 1 && cur && !shelves.some(s => s.pageId === cur.id)) {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'page-del';
+      del.textContent = '刪除此頁';
+      del.addEventListener('click', async () => {
+        if (!await ask(`確定要刪除「${cur.name}」嗎？`, '刪除')) return;
+        run(() => {
+          pages = pages.filter(p => p !== cur);
+          currentPage = pages[0].id;
+          toast(`已刪除「${cur.name}」`, 'success');
+        });
+      });
+      nav.appendChild(del);
+    }
+  }
+
+  // 名稱不換行：太長就逐步縮小字級，直到放得進一行
+  function fitNames() {
+    document.querySelectorAll('.ic-name').forEach(el => {
+      let fs = 16;
+      el.style.fontSize = fs + 'px';
+      while (el.scrollWidth > el.clientWidth && fs > 10) {
+        fs -= 1;
+        el.style.fontSize = fs + 'px';
+      }
+    });
+  }
+
+  function itemCard(it) {
+    const t = today();
+    const st = statusOf(it, t);
+    const openD = addDays(it.thawDate, it.thaw);
+    const c = document.createElement('div');
+    c.className = `item-card ${st.key}`;
+    c.dataset.id = it.id;
+    c.innerHTML = `
+      <div class="ic-band">
+        <span class="ic-name" title="${esc(it.name)}"><span class="ic-label">品名：</span>${esc(it.name)} <span class="ic-spec">解${it.thaw}放${it.keep}</span></span>
+        <button type="button" class="ic-x" title="刪除品項" aria-label="刪除 ${esc(it.name)}">${ICON.x}</button>
+      </div>
+      <div class="ic-body">
+        <div class="ic-dates">
+          <div><span>解凍日期</span><b>${md(it.thawDate)}</b></div>
+          <div><span>使用日期</span><b>${md(openD)}</b></div>
+          <div><span>丟棄日期</span><b>${md(st.discard)}</b></div>
+        </div>
+        <div>
+          <button type="button" class="retag">換標</button>
+        </div>
+        <div class="ic-foot"><span class="ic-status ${st.key}">${st.text}</span></div>
+      </div>`;
+
+    c.querySelector('.retag').addEventListener('click', async () => {
+      if (!await ask(`將「${it.name}」換標為今天（${today()}）？`, '換標')) return;
+      run(() => {
+        it.thawDate = today();
+        toast(`已完成「${it.name}」換標`, 'success');
+      });
+    });
+
+    const delItem = async () => {
+      if (!await ask(`確定要刪除品項「${it.name}」嗎？`, '刪除')) return;
+      run(() => {
+        items = items.filter(x => x !== it);
+        toast(`已刪除「${it.name}」`, 'success');
+      });
+    };
+    c.querySelector('.ic-x').addEventListener('click', delItem);
+    return c;
+  }
+
+  /* ---------- 新增品項 ---------- */
+  function openAdd(shelfId, shelfName) {
+    addShelfId = shelfId;
+    $('#add-title').textContent = `新增至「${shelfName}」`;
+    $('#f-name').value = '';
+    $('#f-thaw').value = '1';
+    $('#f-keep').value = '2';
+    showErrors({});
+    showModal($('#add'));
+    setTimeout(() => $('#f-name').focus(), 0);
+  }
+  function closeAdd() {
+    hideModal($('#add'));
+  }
+  function showErrors(errs) {
+    $('#e-name').textContent = errs.name || '';
+    $('#e-thaw').textContent = errs.thaw || '';
+    $('#e-keep').textContent = errs.keep || '';
+    $('#f-name').closest('.field').classList.toggle('invalid', !!errs.name);
+    $('#f-thaw').closest('.field').classList.toggle('invalid', !!errs.thaw);
+    $('#f-keep').closest('.field').classList.toggle('invalid', !!errs.keep);
+  }
+
+  $('#add-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('#f-name').value.trim();
+    const thawS = $('#f-thaw').value.trim();
+    const keepS = $('#f-keep').value.trim();
+    const errs = {};
+    if (!name) errs.name = '請輸入品名';
+    else if ([...name].length > 30) errs.name = '品名最多 30 個字';
+    if (!/^\d+$/.test(thawS) || +thawS > 30) errs.thaw = '解凍天數請填 0–30 的整數';
+    if (!/^\d+$/.test(keepS) || +keepS > 365) errs.keep = '保存天數請填 0–365 的整數';
+    showErrors(errs);
+    if (Object.keys(errs).length) return;
+
+    const shelfId = addShelfId;
+    closeAdd();
+    run(() => {
+      items.push({ id: 'i' + (++seq), shelfId, name, thaw: +thawS, keep: +keepS, thawDate: today() });
+      toast(`已新增「${name}」`, 'success');
+    });
+  });
+
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAdd));
+  $('#ask').addEventListener('click', e => { if (e.target.id === 'ask') $('#ask-cancel').click(); });
+  $('#add').addEventListener('click', e => { if (e.target.id === 'add') closeAdd(); });
+  ['#f-name', '#f-thaw', '#f-keep'].forEach(sel => {
+    $(sel).addEventListener('input', () => showErrors({}));
+  });
+
+  /* ---------- 新增層架（先命名才建立） ---------- */
+  function openShelfModal() {
+    $('#s-name').value = '';
+    $('#e-shelf').textContent = '';
+    $('#s-name').closest('.field').classList.remove('invalid');
+    showModal($('#shelf-modal'));
+    setTimeout(() => $('#s-name').focus(), 0);
+  }
+  function closeShelfModal() {
+    hideModal($('#shelf-modal'));
+  }
+
+  $('#btn-add-shelf').addEventListener('click', openShelfModal);
+  document.querySelectorAll('[data-close-shelf]').forEach(b => b.addEventListener('click', closeShelfModal));
+  $('#shelf-modal').addEventListener('click', e => { if (e.target.id === 'shelf-modal') closeShelfModal(); });
+  $('#s-name').addEventListener('input', () => {
+    $('#e-shelf').textContent = '';
+    $('#s-name').closest('.field').classList.remove('invalid');
+  });
+
+  $('#shelf-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('#s-name').value.trim();
+    let err = '';
+    if (!name) err = '請輸入層架名稱';
+    else if ([...name].length > 20) err = '層架名稱最多 20 個字';
+    if (err) {
+      $('#e-shelf').textContent = err;
+      $('#s-name').closest('.field').classList.add('invalid');
+      return;
+    }
+    closeShelfModal();
+    run(() => {
+      shelves.push({ id: 's' + (++seq), name, pageId: currentPage });
+      toast(`已新增「${name}」`, 'success');
+    });
+    const all = document.querySelectorAll('.shelf');
+    if (all.length) all[all.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  /* ---------- 層架拖曳放置：依指標位置決定插入順序 ---------- */
+  /* ---------- 拖曳（卡片與層架）：指標事件＋自動捲動 ----------
+     觸控：長按 450ms 拉起；滑鼠：按住移動即拉起。
+     拖曳中：被拖物以 fixed 圖層跟隨指標，原位留下虛線占位格；其他項目以 FLIP 滑開。
+     位置判斷用版面座標（offset），不受滑動動畫影響；靠近畫面上下邊緣會自動捲動。 */
+  const dragLayer = $('#drag-layer');
+  const LONG_PRESS_MS = 450;
+  const LIFT_SCALE = 1.12;
+  const EDGE = 90;          // 距離畫面上下邊緣多少 px 開始自動捲動
+  const MAX_SCROLL = 18;    // 每幀最多捲動的 px
+  let pend = null;          // 按下後尚未確定是拖曳或捲動
+  let drag = null;          // 拖曳中
+  let suppressClick = false;
+
+  function cancelPend() {
+    if (pend && pend.timer) clearTimeout(pend.timer);
+    pend = null;
+  }
+
+  // 版面座標：相對於 body，不含 transform（動畫中也穩定）
+  function layoutBox(el) {
+    let x = 0, y = 0, n = el;
+    while (n && n !== document.body) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+    return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+  }
+  function toLayout(clientX, clientY) {
+    const o = document.body.getBoundingClientRect();
+    return { x: clientX + scrollX - o.left - scrollX, y: clientY + scrollY - o.top - scrollY };
+  }
+
+  // 其他卡片位置改變時，從舊位置滑到新位置（FLIP）
+  function flip(mutate, sel = '.item-card') {
+    const els = [...document.querySelectorAll(`${sel}:not(.lifted):not(.dragging)`)];
+    const first = new Map(els.map(c => [c, c.getBoundingClientRect()]));
+    mutate();
+    els.forEach(c => {
+      const a = first.get(c);
+      const b = c.getBoundingClientRect();
+      const dx = a.left - b.left;
+      const dy = a.top - b.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+      c.animate(
+        [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }],
+        { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)' }
+      );
+    });
+  }
+
+  // 卡片：指標在層架內時，插入點為其後的卡片（或「新增品項」按鈕）
+  function insertPointFor(rack, lx, ly) {
+    for (const c of rack.querySelectorAll('.item-card')) {
+      const b = layoutBox(c);
+      if (ly < b.y) return c;
+      if (ly <= b.y + b.h && lx < b.x + b.w / 2) return c;
+    }
+    return rack.querySelector('.add-item');
+  }
+
+  // 層架：指標在哪一層的中線之上，就插在那層之前
+  function shelfBefore(ly) {
+    for (const s of document.querySelectorAll('#shelves > .shelf:not(.lifted)')) {
+      const b = layoutBox(s);
+      if (ly < b.y + b.h / 2) return s;
+    }
+    return null;
+  }
+
+  function placeSlot(d, container, before, sel) {
+    if (d.slot.parentNode === container && d.slot.nextSibling === before) return;
+    flip(() => container.insertBefore(d.slot, before), sel);
+  }
+
+  function setOver(d, rack) {
+    if (d.overRack === rack) return;
+    if (d.overRack) d.overRack.classList.remove('over');
+    if (rack) rack.classList.add('over');
+    d.overRack = rack;
+  }
+
+  function place(d) {
+    const lp = toLayout(d.px, d.py);
+    if (d.kind === 'shelf') {
+      placeSlot(d, $('#shelves'), shelfBefore(lp.y), '.shelf');
+      return;
+    }
+    const under = document.elementFromPoint(d.px, d.py);
+    const rack = under ? under.closest('.rack') : null;
+    if (rack) {
+      placeSlot(d, rack, insertPointFor(rack, lp.x, lp.y), '.item-card');
+    } else {
+      placeSlot(d, d.parent0, d.before0, '.item-card');   // 不在任何層架上：回到原位
+    }
+    setOver(d, rack);
+  }
+
+  // 每幀：自動捲動、跟隨指標、更新占位格
+  function tick() {
+    if (!drag) return;
+    drag.raf = requestAnimationFrame(tick);
+    let dy = 0;
+    if (drag.py < EDGE) dy = -MAX_SCROLL * (EDGE - drag.py) / EDGE;
+    else if (drag.py > innerHeight - EDGE) dy = MAX_SCROLL * (drag.py - (innerHeight - EDGE)) / EDGE;
+    if (dy) window.scrollBy(0, dy);
+    const s = drag.scale;
+    drag.el.style.transform =
+      `translate3d(${drag.px - drag.offX * s}px, ${drag.py - drag.offY * s}px, 0) scale(${s})`;
+    place(drag);
+  }
+
+  function beginLift(kind, el, x, y, rect) {
+    const cs = getComputedStyle(el);
+    const parent0 = el.parentNode;
+    const before0 = el.nextSibling;
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.style.width = rect.width + 'px';
+    slot.style.height = rect.height + 'px';
+    if (kind === 'shelf') {
+      slot.style.borderRadius = 'var(--radius-lg)';
+      slot.style.margin = cs.margin;
+    }
+    parent0.insertBefore(slot, el);          // 占位格先佔住原位，版面不跳動
+    el.style.width = rect.width + 'px';
+    el.style.height = rect.height + 'px';
+    el.style.left = '0px';
+    el.style.top = '0px';
+    el.classList.add('lifted');
+    dragLayer.appendChild(el);
+    document.body.classList.add('is-dragging');
+    drag = {
+      kind, el, slot, parent0, before0,
+      scale: kind === 'item' ? LIFT_SCALE : 1,
+      offX: x - rect.left, offY: y - rect.top,
+      px: x, py: y, raf: null, overRack: null,
+    };
+    tick();
+  }
+
+  function endDrag() {
+    const d = drag;
+    drag = null;
+    if (d.raf != null) cancelAnimationFrame(d.raf);
+    setOver(d, null);
+    document.body.classList.remove('is-dragging');
+    suppressClick = true;                    // 拖曳結束後不要觸發層架 ☰ 的刪除點擊
+    setTimeout(() => { suppressClick = false; }, 300);
+
+    const r = d.slot.getBoundingClientRect();
+    const settle = d.el.animate(
+      [
+        { transform: d.el.style.transform },
+        { transform: `translate3d(${r.left}px, ${r.top}px, 0) scale(1)` },
+      ],
+      { duration: 360, easing: 'cubic-bezier(.34,1.4,.64,1)' }
+    );
+    settle.onfinish = () => {
+      let idx = 0;                           // 占位格前面有幾個同類項目 = 插入位置
+      for (let n = d.slot.previousSibling; n; n = n.previousSibling) {
+        if (n.classList && n.classList.contains(d.kind === 'item' ? 'item-card' : 'shelf')) idx++;
+      }
+      const id = d.el.dataset.id || d.el.dataset.shelfId;
+      const shelfId = d.kind === 'item' ? d.slot.parentNode.dataset.shelfId : null;
+      d.el.remove();
+      d.slot.remove();
+      if (d.kind === 'item') {
+        run(() => {
+          const n = items.length;
+          moveItem(id, shelfId, idx);
+          if (items.length !== n) throw new Error('移動失敗，請再試一次');
+        });
+      } else {
+        run(() => {
+          const moving = shelves.find(s => s.id === id);
+          const others = shelves.filter(s => s !== moving);
+          const pageOthers = others.filter(s => s.pageId === moving.pageId);
+          const anchor = pageOthers[idx];
+          if (anchor) others.splice(others.indexOf(anchor), 0, moving);
+          else if (pageOthers.length) others.splice(others.indexOf(pageOthers[pageOthers.length - 1]) + 1, 0, moving);
+          else others.push(moving);
+          shelves = others;
+        });
+      }
+    };
+  }
+
+  function onDown(e) {
+    if (drag || e.button !== 0) return;
+    let kind, el;
+    const handle = e.target.closest('.shelf-handle');
+    if (handle) {
+      kind = 'shelf';
+      el = handle.closest('.shelf');
+    } else {
+      if (e.target.closest('button, input, textarea')) return;   // 按鈕與輸入框照常運作
+      el = e.target.closest('.item-card');
+      if (!el) return;
+      kind = 'item';
+    }
+    cancelPend();
+    pend = {
+      kind, el, id: e.pointerId, type: e.pointerType,
+      sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY,
+      rect: el.getBoundingClientRect(), timer: null,
+    };
+    if (e.pointerType !== 'mouse') {
+      pend.timer = setTimeout(() => {       // 觸控：長按才拉起（否則是捲動）
+        const p = pend;
+        if (!p) return;
+        pend = null;
+        if (navigator.vibrate) navigator.vibrate(10);
+        beginLift(p.kind, p.el, p.x, p.y, p.rect);
+      }, LONG_PRESS_MS);
+    }
+  }
+
+  function onWinMove(e) {
+    if (drag) {
+      drag.px = e.clientX;
+      drag.py = e.clientY;
+      return;
+    }
+    if (!pend || e.pointerId !== pend.id) return;
+    pend.x = e.clientX;
+    pend.y = e.clientY;
+    const dist = Math.hypot(e.clientX - pend.sx, e.clientY - pend.sy);
+    if (pend.type === 'mouse' && dist > 4) {
+      const p = pend;
+      cancelPend();
+      beginLift(p.kind, p.el, p.x, p.y, p.rect);
+    } else if (pend.type !== 'mouse' && dist > 10) {
+      cancelPend();                          // 觸控移動 = 捲動，不是拖曳
+    }
+  }
+
+  function onWinUp(e) {
+    if (pend && e.pointerId === pend.id) cancelPend();
+    if (drag) endDrag();
+  }
+
+  const shelvesEl = $('#shelves');
+  shelvesEl.addEventListener('pointerdown', onDown);
+  shelvesEl.addEventListener('contextmenu', e => {
+    if (e.target.closest('.item-card, .shelf-handle')) e.preventDefault();
+  });
+  window.addEventListener('pointermove', onWinMove);
+  window.addEventListener('pointerup', onWinUp);
+  window.addEventListener('pointercancel', onWinUp);
+  window.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+
+  /* ---------- 鍵盤 ---------- */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!$('#ask').classList.contains('hidden')) $('#ask-cancel').click();
+    else if (!$('#shelf-modal').classList.contains('hidden')) closeShelfModal();
+    else if (!$('#add').classList.contains('hidden')) closeAdd();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
