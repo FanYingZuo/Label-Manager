@@ -2,6 +2,7 @@ package com.example.labelmanager.controller;
 
 import com.example.labelmanager.dto.CreateItemRequest;
 import com.example.labelmanager.dto.ItemResponse;
+import com.example.labelmanager.dto.MoveShelfRequest;
 import com.example.labelmanager.dto.ShelfResponse;
 import com.example.labelmanager.dto.UpdateShelfNameRequest;
 import com.example.labelmanager.service.LabelManagerService;
@@ -36,6 +37,12 @@ public class ShelfController {
         String name = (request != null) ? request.name() : null;
         ShelfResponse response = labelManagerService.addShelf(name);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/move")
+    public ResponseEntity<?> moveShelf(@RequestBody MoveShelfRequest request) {
+        labelManagerService.moveShelf(request);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/last")

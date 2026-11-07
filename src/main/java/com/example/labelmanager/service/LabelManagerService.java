@@ -5,7 +5,12 @@ import com.example.labelmanager.ItemStatus;
 import com.example.labelmanager.ShelfManager;
 import com.example.labelmanager.StatusColor;
 import com.example.labelmanager.StatusSummary;
-import com.example.labelmanager.dto.*;
+import com.example.labelmanager.dto.CreateItemRequest;
+import com.example.labelmanager.dto.ItemResponse;
+import com.example.labelmanager.dto.MoveItemRequest;
+import com.example.labelmanager.dto.MoveShelfRequest;
+import com.example.labelmanager.dto.ShelfResponse;
+import com.example.labelmanager.dto.UpdateShelfNameRequest;
 import com.example.labelmanager.entity.ItemEntity;
 import com.example.labelmanager.entity.ShelfEntity;
 import com.example.labelmanager.repository.ItemRepository;
@@ -219,6 +224,23 @@ public class LabelManagerService {
             ItemEntity entity = remaining.get(i);
             entity.setSortOrder(i);
             itemRepository.save(entity);
+        }
+    }
+
+    public void moveShelf(MoveShelfRequest request) {
+        Objects.requireNonNull(request, "Request cannot be null");
+        ShelfEntity shelf = shelfRepository.findById(request.shelfId())
+                .orElseThrow(() -> new IllegalArgumentException("層架不存在: " + request.shelfId()));
+
+        List<ShelfEntity> shelves = new ArrayList<>(shelfRepository.findAllByOrderBySortOrderAsc());
+        shelves.removeIf(s -> s.getId().equals(shelf.getId()));
+
+        int targetIndex = Math.max(0, Math.min(request.targetIndex(), shelves.size()));
+        shelves.add(targetIndex, shelf);
+
+        for (int i = 0; i < shelves.size(); i++) {
+            shelves.get(i).setSortOrder(i + 1);
+            shelfRepository.save(shelves.get(i));
         }
     }
 
