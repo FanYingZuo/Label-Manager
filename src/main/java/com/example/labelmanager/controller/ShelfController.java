@@ -17,7 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/shelves")
-@CrossOrigin
 public class ShelfController {
 
     private final LabelManagerService labelManagerService;

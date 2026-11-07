@@ -11,7 +11,6 @@ import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/status")
-@CrossOrigin
 public class StatusController {
 
     private final LabelManagerService labelManagerService;
