@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "label-manager",
+      "runtimeExecutable": "java",
+      "runtimeArgs": ["-jar", "target/label-manager-0.1.0-SNAPSHOT.jar"],
+      "port": 8080
+    }
+  ]
+}

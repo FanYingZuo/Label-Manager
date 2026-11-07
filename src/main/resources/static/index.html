@@ -522,12 +522,13 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
       await fn();
     } catch (err) {
       toast(err.message || '操作失敗', 'error');
-      return;
-    } finally {
       busy = false;
       document.body.classList.remove('busy');
+      return;
     }
-    render();
+    busy = false;
+    document.body.classList.remove('busy');
+    await loadData();
   }
 
   // 確認視窗文字不換行：放不下就逐步縮小字級，仍不夠則省略
