@@ -1031,9 +1031,6 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
             shelfId: id,
             targetIndex: idx
           });
-          const shelfData = await apiCall('GET', '/api/shelves');
-          shelves = shelfData;
-          items = shelfData.flatMap(s => s.items || []);
         });
       }
     };
