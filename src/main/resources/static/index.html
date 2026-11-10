@@ -150,19 +150,15 @@ main{max-width:1120px;margin:0 auto;padding:24px max(24px,env(safe-area-inset-ri
   cursor:pointer;user-select:none;
 }
 .page-tab[aria-selected="true"]{background:var(--surface);color:var(--label);box-shadow:0 1px 3px rgba(0,0,0,.12)}
-.pt-n{margin-left:6px;font-size:13px;opacity:.6}
-.pt-input{
-  width:7em;border:0;background:transparent;font:inherit;color:var(--label);
-  text-align:center;outline:none;border-bottom:1px solid var(--blue);
-}
-.pt-input::placeholder{color:var(--label-3)}
 .page-add{
   flex:none;padding:6px 14px;border-radius:999px;
   color:var(--blue);font-size:18px;font-weight:600;white-space:nowrap;
   background:var(--fill);transition:background .2s ease;
 }
 .page-add:hover{background:rgba(0,122,255,.12)}
-.page-del{flex:none;padding:6px 10px;color:var(--red-d);font-size:13px;font-weight:500;white-space:nowrap;margin-left:auto}
+.del-page-btn{width:100%;padding:14px 20px;text-align:center;color:var(--red);font-size:17px;font-weight:500;cursor:pointer}
+.del-page-btn:hover{opacity:.75}
+.del-page-btn:disabled{opacity:.35;cursor:not-allowed}
 
 /* 品項卡 */
 .item-card{
@@ -399,6 +395,32 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
   </button>
 </main>
 
+<!-- 分頁設定 -->
+<div id="page-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="page-modal-title">
+  <div class="sheet">
+    <div class="sheet-bar">
+      <button type="button" class="text-btn" id="page-modal-cancel">取消</button>
+      <h3 id="page-modal-title">分頁設定</h3>
+      <button type="button" class="text-btn strong" id="page-modal-save">儲存</button>
+    </div>
+    <div class="sheet-body">
+      <div class="group">
+        <div class="field">
+          <div class="row">
+            <label for="page-name-input">分頁名稱</label>
+            <input id="page-name-input" maxlength="10" placeholder="分頁名稱" autocomplete="off">
+          </div>
+          <small class="err" id="e-page"></small>
+        </div>
+      </div>
+      <div class="group" id="page-delete-group">
+        <button type="button" class="del-page-btn" id="page-delete-btn">刪除此分頁</button>
+        <small id="page-delete-err" class="err"></small>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 新增層架 -->
 <div id="shelf-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shelf-title">
   <div class="sheet">
@@ -519,7 +541,6 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
   let pages = [];
   let currentPageId = 1;
   let shelfPageMap = {};   // { shelfId(Number): pageId }
-  let pageRenaming = false;
   const INIT_PER_PAGE = 4;
 
   function loadPageState() {
@@ -666,75 +687,17 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
       btn.className = 'page-tab';
       btn.setAttribute('aria-selected', p.id === currentPageId);
       btn.dataset.pageId = p.id;
-
-      const count = shelves.filter(s => shelfPageMap[s.id] === p.id).length;
-
-      if (p.id === currentPageId && pageRenaming) {
-        // 改名模式
-        const inp = document.createElement('input');
-        inp.className = 'pt-input';
-        inp.value = p.name;
-        inp.maxLength = 10;
-        inp.placeholder = '名稱';
-        btn.appendChild(inp);
-        if (count > 0) {
-          const n = document.createElement('span');
-          n.className = 'pt-n';
-          n.textContent = `(${count})`;
-          btn.appendChild(n);
+      btn.textContent = p.name;
+      btn.addEventListener('click', () => {
+        if (p.id === currentPageId) {
+          openPageModal(p.id);
+        } else {
+          currentPageId = p.id;
+          render();
         }
-        const commit = () => {
-          const v = inp.value.trim();
-          if (v) p.name = v;
-          pageRenaming = false;
-          savePageState();
-          renderPages();
-        };
-        inp.addEventListener('blur', commit);
-        inp.addEventListener('keydown', e => {
-          if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
-          if (e.key === 'Escape') { pageRenaming = false; renderPages(); }
-        });
-        setTimeout(() => { inp.select(); inp.focus(); }, 10);
-      } else {
-        btn.textContent = p.name;
-        if (count > 0) {
-          const n = document.createElement('span');
-          n.className = 'pt-n';
-          n.textContent = `(${count})`;
-          btn.appendChild(n);
-        }
-        btn.addEventListener('click', () => {
-          if (p.id === currentPageId) {
-            pageRenaming = true;
-            renderPages();
-          } else {
-            currentPageId = p.id;
-            pageRenaming = false;
-            render();
-          }
-        });
-      }
+      });
       nav.appendChild(btn);
     });
-
-    // 刪除當前分頁（需無層架）
-    const curCount = shelves.filter(s => shelfPageMap[s.id] === currentPageId).length;
-    if (pages.length > 1 && curCount === 0) {
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'page-del';
-      del.textContent = '刪除此頁';
-      del.addEventListener('click', async () => {
-        const name = pages.find(p => p.id === currentPageId)?.name || '';
-        if (!await ask(`確定刪除「${name}」分頁嗎？（無法復原）`, '刪除')) return;
-        pages = pages.filter(p => p.id !== currentPageId);
-        currentPageId = pages[0].id;
-        savePageState();
-        render();
-      });
-      nav.appendChild(del);
-    }
 
     // 新增分頁 +
     const addBtn = document.createElement('button');
@@ -746,12 +709,69 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
       const newId = Date.now();
       pages.push({ id: newId, name: String(pages.length + 1) });
       currentPageId = newId;
-      pageRenaming = true;
       savePageState();
       renderPages();
+      openPageModal(newId);
     });
     nav.appendChild(addBtn);
   }
+
+  /* ---- 分頁設定彈窗 ---- */
+  function openPageModal(pageId) {
+    const p = pages.find(pg => pg.id === pageId);
+    if (!p) return;
+    const modal = $('#page-modal');
+    const inp = $('#page-name-input');
+    const err = $('#e-page');
+    const delBtn = $('#page-delete-btn');
+    const delErr = $('#page-delete-err');
+    inp.value = p.name;
+    err.textContent = '';
+    delErr.textContent = '';
+    $('#page-delete-group').style.display = pages.length > 1 ? '' : 'none';
+    modal.classList.remove('hidden');
+    setTimeout(() => { inp.select(); inp.focus(); }, 10);
+
+    $('#page-modal-save').onclick = () => {
+      const v = inp.value.trim();
+      if (!v) { err.textContent = '名稱不可為空'; return; }
+      p.name = v;
+      savePageState();
+      closePageModal();
+      renderPages();
+    };
+
+    delBtn.onclick = async () => {
+      delErr.textContent = '';
+      const shelfCount = shelves.filter(s => shelfPageMap[s.id] === pageId).length;
+      if (shelfCount > 0) {
+        delErr.textContent = `此分頁還有 ${shelfCount} 個層架，請先清空才能刪除`;
+        return;
+      }
+      const itemCount = shelves.filter(s => shelfPageMap[s.id] === pageId)
+        .reduce((n, s) => n + (s.items?.length || 0), 0);
+      if (itemCount > 0) {
+        delErr.textContent = `此分頁還有 ${itemCount} 個食品，請先清空才能刪除`;
+        return;
+      }
+      if (!await ask(`確定刪除「${p.name}」分頁？`, '刪除')) return;
+      if (!await ask(`刪除後無法復原！確定要永久刪除「${p.name}」嗎？`, '確定刪除')) return;
+      pages = pages.filter(pg => pg.id !== pageId);
+      if (currentPageId === pageId) currentPageId = pages[0].id;
+      savePageState();
+      closePageModal();
+      render();
+    };
+  }
+
+  function closePageModal() {
+    const modal = $('#page-modal');
+    modal.classList.add('closing');
+    setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('closing'); }, 200);
+  }
+
+  $('#page-modal-cancel').addEventListener('click', closePageModal);
+  $('#page-modal').addEventListener('click', e => { if (e.target === $('#page-modal')) closePageModal(); });
 
   /* ---- 主渲染 ---- */
   function render() {
@@ -1231,6 +1251,7 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (!$('#ask').classList.contains('hidden')) $('#ask-cancel').click();
+    else if (!$('#page-modal').classList.contains('hidden')) closePageModal();
     else if (!$('#shelf-modal').classList.contains('hidden')) closeShelfModal();
     else if (!$('#add').classList.contains('hidden')) closeAdd();
   });
