@@ -153,6 +153,18 @@ try {
   Start-Sleep -Milliseconds 400
   $t5 = Theme
   if ($t5 -eq $t4) { $report.phaseErrors += "A5 Enter did not toggle ($t4)" }
+  # ---- Phase A2: F16 time schedule (16:00–04:00 night) ----
+  $sched = Eval-Js "(() => { const d = (h, m) => new Date(2026, 10, 14, h, m); const t = window.lmTheme; return { n1559: t.scheduled(d(15, 59)), n1600: t.scheduled(d(16, 0)), n0359: t.scheduled(d(3, 59)), n0400: t.scheduled(d(4, 0)), b1000: t.nextBoundary(d(10, 0)) === d(16, 0).getTime(), b0200: t.nextBoundary(d(2, 0)) === d(4, 0).getTime(), b1800: t.nextBoundary(d(18, 0)) === new Date(2026, 10, 15, 4, 0).getTime() }; })()"
+  if ($sched.n1559 -ne 'light' -or $sched.n1600 -ne 'dark' -or $sched.n0359 -ne 'dark' -or $sched.n0400 -ne 'light') { $report.phaseErrors += "A6 schedule wrong: $($sched | ConvertTo-Json -Compress)" }
+  if (-not ($sched.b1000 -and $sched.b0200 -and $sched.b1800)) { $report.phaseErrors += "A7 nextBoundary wrong: $($sched | ConvertTo-Json -Compress)" }
+  # manual override that expires in 1.5s must be cleared and the theme must follow the schedule (30s sync tick)
+  $cur = Theme
+  $opp = if ($cur -eq 'dark') { 'light' } else { 'dark' }
+  $null = Eval-Js "localStorage.setItem('lm_theme_override', JSON.stringify({ theme: '$opp', until: Date.now() + 1500 })); true"
+  Start-Sleep -Seconds 35
+  $after = Eval-Js "({ theme: document.documentElement.getAttribute('data-theme'), want: window.lmTheme.effective(Date.now()), override: localStorage.getItem('lm_theme_override') })"
+  if ($after.override) { $report.phaseErrors += "A8 expired override not cleared" }
+  if ($after.theme -ne $after.want) { $report.phaseErrors += "A8 theme $($after.theme) != schedule $($after.want) after expiry" }
   # screenshots of both themes
   foreach ($th in @('light', 'dark')) {
     $null = Eval-Js "(() => { if (document.documentElement.getAttribute('data-theme') !== '$th') document.querySelector('#theme-switch').click(); })()"

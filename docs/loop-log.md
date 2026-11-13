@@ -45,3 +45,16 @@
 - 建議（不在範圍內，未實作）：
   - 後端未檢查 `thawDate` 不可晚於今天（stabilization-plan 2.3 有要求）；前端日期欄也可選未來日期。
   - 層架/品項「找不到」目前回 400（`IllegalArgumentException`），stabilization-plan 2.1 規定應為 404。
+
+## Round 7 — 2026-11-14 — seed 14 (1280px, 日夜時段自動) / seed 15 (1280px, 只允許本機) — ops 120 × 2
+- 結果：**PASS**（兩次皆 0 操作錯誤、0 JS 例外、0 伺服器 ERROR；Phase A 0 錯誤）
+- 需求變更（使用者）：
+  - 日夜模式改為 **16:00–04:00 夜間、其餘白天**；可手動切換，手動結果保留到下一個時段界線，到點自動切換。
+  - **只允許電腦操作**，手機與平板不可操作或觀看。
+- 修改：
+  - `index.html`：`<head>` 與主程式改用 `window.lmTheme`（時段＋覆蓋值）；`localStorage.lm_theme` 改為 `lm_theme_override`（`{theme, until}`）；移除系統偏好跟隨；每 30 秒與回到分頁時同步。
+  - `config/LocalOnlyFilter.java`（新增）：非迴環位址回 403，訊息「僅允許本機電腦使用」。`LocalOnlyFilterTest` 3 項測試。
+  - `run-loop.ps1` Phase A2：時段界線檢查（15:59 白天、16:00 夜間、03:59 夜間、04:00 白天、界線計算）＋覆蓋值過期後 35 秒內自動回到時段（A6–A8）。
+  - `ui-loop.js`：I-10、OP-13、OP-14 改用新的覆蓋值；I-10 在時段剛改變的 31 秒內略過比對。
+- 測試：`mvn package` 40/40 綠。
+- 版面：本輪只跑 1280px；手機與平板已不在範圍內，`rules.md` 的 390px 要求已移除。

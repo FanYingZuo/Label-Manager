@@ -10,6 +10,7 @@
 1. **只修不加**：Loop 期間只驗證、修正 `docs/loop-engineering.md` 第 2 節列出的功能（F1–F16）。想加的功能寫進 `docs/loop-log.md` 的「建議」欄，不要實作。
 2. **不改 UI 風格**：沿用 iOS 風格（`.agents/skills/ios-experience`）。日夜兩套主題都要能正常顯示。
 3. **不加**：登入、列印、通知、多店、雲端部署（見 `docs/progress.md`）。
+4. **只允許本機電腦**：不得開放區網或手機、平板存取；`LocalOnlyFilter` 與 `start.bat` 的 `--server.address=127.0.0.1` 不可移除。
 
 ## 2. 修改規則
 
@@ -34,7 +35,7 @@
 | 單元／整合測試 | `mvn package` 全綠 |
 | Loop 操作次數 | 每輪 ≥ 100 次 |
 | Loop 結果 | 0 操作錯誤、0 JS 例外、0 伺服器 ERROR、`PASS=True` |
-| 版面 | 1280px 與 390px（手機）各跑過至少一次 |
+| 版面 | 1280px（電腦）跑過至少一次；本系統不支援手機與平板，不需 390px 驗證 |
 | 紀錄 | 在 `docs/loop-log.md` 追加本輪紀錄 |
 
 ## 5. Git 規則

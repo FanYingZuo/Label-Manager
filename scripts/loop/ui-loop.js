@@ -213,8 +213,12 @@
     const ac = $('#theme-switch').getAttribute('aria-checked');
     if (th !== 'light' && th !== 'dark') errs.push('I-10 data-theme=' + th);
     if ((th === 'dark') !== (ac === 'true')) errs.push(`I-10 theme=${th} aria-checked=${ac}`);
-    const stored = localStorage.getItem('lm_theme');
-    if (stored && stored !== th) errs.push(`I-10 stored=${stored} theme=${th}`);
+    // 時段自動切換：時段剛在 31 秒內改變時，30 秒同步計時器可能尚未執行，略過比對
+    const tm = window.lmTheme, nowMs = Date.now();
+    const stable = tm.effective(nowMs) === tm.effective(nowMs - 31000);
+    const want = tm.effective(nowMs);
+    if (stable && th !== want) errs.push(`I-10 theme=${th} want=${want} (schedule)`);
+    if (localStorage.getItem('lm_theme') !== null) errs.push('I-10 legacy lm_theme still stored');
     const night = getComputedStyle(document.documentElement).getPropertyValue('--night').trim();
     if ((th === 'dark') !== (night === '1')) errs.push(`I-10 --night=${night} theme=${th}`);
 
@@ -559,7 +563,8 @@
     const expect = mode === 2 ? before : want;
     if (now !== expect) return `OP-13 mode ${mode} theme ${before} → ${now}, want ${expect}`;
     if (mode === 2) return;
-    if (localStorage.getItem('lm_theme') !== now) return `OP-13 not persisted`;
+    const ov = JSON.parse(localStorage.getItem('lm_theme_override') || 'null');
+    if (!ov || ov.theme !== now || !(ov.until > Date.now())) return `OP-13 override not stored (${JSON.stringify(ov)})`;
     if (sw.style.getPropertyValue('--knob-x')) return 'OP-13 knob inline position left behind';
     if (sw.classList.contains('pressed') || sw.classList.contains('dragging')) return 'OP-13 pressed/dragging class left';
   }
@@ -676,7 +681,7 @@
   function snapshot() {
     return {
       theme: document.documentElement.getAttribute('data-theme'),
-      lm_theme: localStorage.getItem('lm_theme'),
+      lm_theme_override: localStorage.getItem('lm_theme_override'),
       lm_pages: localStorage.getItem('lm_pages'),
       lm_spm: localStorage.getItem('lm_spm'),
       page: ($('#pages .page-tab[aria-selected="true"]') || {}).textContent || null,
@@ -688,7 +693,7 @@
     const now = snapshot();
     const errs = [];
     if (now.theme !== s.theme) errs.push(`OP-14 theme after reload ${now.theme} != ${s.theme}`);
-    if (now.lm_theme !== s.lm_theme) errs.push('OP-14 lm_theme changed');
+    if (now.lm_theme_override !== s.lm_theme_override) errs.push('OP-14 lm_theme_override changed');
     if (now.lm_pages !== s.lm_pages) errs.push('OP-14 lm_pages changed');
     if (now.lm_spm !== s.lm_spm) errs.push('OP-14 lm_spm changed');
     const inv = await checkInvariants();

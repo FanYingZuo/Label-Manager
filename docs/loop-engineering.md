@@ -27,7 +27,7 @@
 | 後端 | Spring Boot 3.2.5、Java 17、SQLite（`${user.dir}/labelmanager.db`，WAL，單一連線） |
 | 前端 | 單一檔案 `src/main/resources/static/index.html`（HTML + CSS + Vanilla JS，無 build） |
 | 時間 | 「今天」只由後端決定：`Clock`（Asia/Taipei） |
-| 前端本機狀態 | `localStorage`：`lm_pages`（分頁）、`lm_spm`（層架→分頁對應）、`lm_theme`（日夜模式） |
+| 前端本機狀態 | `localStorage`：`lm_pages`（分頁）、`lm_spm`（層架→分頁對應）、`lm_theme_override`（日夜模式手動覆蓋） |
 
 ### API 一覽
 
@@ -70,15 +70,17 @@
 | F15 | 錯誤提示 | API 失敗 → 紅色 toast 顯示後端中文訊息，畫面資料保留 |
 | F16 | **日夜模式切換** | 見第 2.1 節 |
 
-### 2.1 F16 日夜模式（2026-11-13 新增）
+### 2.1 F16 日夜模式（2026-11-13 新增，2026-11-14 改為時段自動）
 
 - **切換方式**：頂部右側的 iPhone 風格切換開關（`#theme-switch`，`role="switch"`）。
   - 點擊切換；也可以**按住圓形把手左右拖曳**，放開時依位置決定（過半 → 夜間）。
   - 按下時把手會像 iOS 一樣微微拉長；放開以彈簧曲線回到定位。
   - 鍵盤：Tab 聚焦後 Space / Enter 切換。
+- **預設時段（自動）**：16:00–04:00 為夜間（`data-theme="dark"`），其餘時間為白天（`data-theme="light"`）。以瀏覽器本機時間判斷（`window.lmTheme.scheduled`）。
 - **狀態**：開關在左 = ☀️ 白天模式（`data-theme="light"`）；開關在右 = 🌙 夜間模式（`data-theme="dark"`，即原本的黑色佈景主題）。`aria-checked="true"` 代表夜間。
-- **記憶**：手動切換後寫入 `localStorage.lm_theme`（`light` / `dark`）；重新整理後維持。從未手動切換時跟隨系統 `prefers-color-scheme`，系統改變時即時跟著變。
-- **防閃爍**：`<head>` 內的小段腳本在 CSS 套用前就設定 `data-theme`。
+- **手動切換**：點擊或拖曳後，覆蓋值寫入 `localStorage.lm_theme_override`（`{theme, until}`），`until` 為下一個時段界線（04:00 或 16:00）。覆蓋值在 `until` 之前有效，到點自動清除並依時段切換。重新整理後維持。舊版 `lm_theme` 會在載入時移除。
+- **自動切換**：每 30 秒同步一次，回到分頁（`visibilitychange`）時也同步。
+- **防閃爍**：`<head>` 內的小段腳本在 CSS 套用前就依覆蓋值／時段設定 `data-theme`。
 - **情境元素**（只在頂部列、純裝飾、`aria-hidden`、`pointer-events:none`，不擋任何操作）：
   - 白天：太陽（光暈）、兩朵雲、淡藍天空漸層；開關軌道是藍天＋雲，把手是太陽。
   - 夜間：彎月、閃爍星星、深藍夜空漸層；開關軌道是夜空＋星星，把手是月亮。
@@ -100,7 +102,7 @@
 | I-07 | 所有彈窗操作結束後都是 `hidden`，`body.style.overflow` 恢復 |
 | I-08 | Console 沒有任何 JS 錯誤（`error` / `unhandledrejection`） |
 | I-09 | 合法操作的 API 回應沒有 4xx/5xx；不合法輸入回 400/404/409，**絕不出現 500** |
-| I-10 | `data-theme` ∈ {light, dark}，且與開關 `aria-checked`、`lm_theme` 一致 |
+| I-10 | `data-theme` ∈ {light, dark}，與開關 `aria-checked` 一致，且等於 `lmTheme.effective(now)`（時段 ＋ 未過期的手動覆蓋）；不存在舊版 `lm_theme` |
 | I-11 | 品項 ID 唯一；同一層 sortOrder 連續（0..n-1） |
 | I-12 | 拖曳放開時佔位框的位置 = 存檔後的順序；游標靜止 4 幀內佔位框不移動 |
 
@@ -143,7 +145,7 @@
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/loop/run-loop.ps1 -Ops 120 -Seed 1
-# 手機寬度：-Width 390；已建置過 jar：-SkipBuild
+# 已建置過 jar：-SkipBuild
 ```
 
 產出：`target/loop/report-<seed>.json`、`target/loop/shot-<seed>-<width>-light.png`、`-dark.png`。

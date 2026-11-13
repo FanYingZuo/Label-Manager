@@ -7,7 +7,25 @@
 <title>標籤管理</title>
 <script>
 /* Apply the saved theme before CSS paints to avoid a flash */
-(function(){try{var t=localStorage.getItem('lm_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+/* 日夜模式：16:00–04:00 為夜間，其餘為白天；手動切換只維持到下一個時段界線 */
+(function(){
+  function scheduled(d){var h=d.getHours();return (h>=16||h<4)?'dark':'light';}
+  function nextBoundary(d){
+    var n=new Date(d.getTime());n.setSeconds(0,0);
+    var h=d.getHours();
+    if(h<4){n.setHours(4,0,0,0);}
+    else if(h<16){n.setHours(16,0,0,0);}
+    else{n.setDate(n.getDate()+1);n.setHours(4,0,0,0);}
+    return n.getTime();
+  }
+  function effective(now){
+    try{var o=JSON.parse(localStorage.getItem('lm_theme_override')||'null');
+      if(o&&(o.theme==='light'||o.theme==='dark')&&now<o.until)return o.theme;}catch(e){}
+    return scheduled(new Date(now));
+  }
+  window.lmTheme={scheduled:scheduled,nextBoundary:nextBoundary,effective:effective};
+  document.documentElement.setAttribute('data-theme',effective(Date.now()));
+})();
 </script>
 <style>
 /* ---------- 色彩 Tokens ---------- */
@@ -1361,34 +1379,44 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
   window.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
 
   /* ---- 日夜模式（iOS Switch：點擊 / 拖曳把手 / 鍵盤） ---- */
-  const THEME_KEY = 'lm_theme';
+  const OVERRIDE_KEY = 'lm_theme_override';
   const themeSw = $('#theme-switch');
-  const darkMql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  try { localStorage.removeItem('lm_theme'); } catch (e) {}   // 舊版設定已不再使用
 
-  function storedTheme() {
+  // 手動切換的結果只保留到下一個時段界線（04:00 或 16:00），到點自動依時段切換
+  function setOverride(theme) {
     try {
-      const t = localStorage.getItem(THEME_KEY);
-      return (t === 'light' || t === 'dark') ? t : null;
-    } catch (e) { return null; }
+      localStorage.setItem(OVERRIDE_KEY, JSON.stringify({ theme, until: lmTheme.nextBoundary(new Date()) }));
+    } catch (e) {}
   }
-  function systemTheme() { return darkMql && darkMql.matches ? 'dark' : 'light'; }
+  function clearExpiredOverride() {
+    try {
+      const raw = localStorage.getItem(OVERRIDE_KEY);
+      if (!raw) return;
+      const o = JSON.parse(raw);
+      if (!(o && Date.now() < o.until)) localStorage.removeItem(OVERRIDE_KEY);
+    } catch (e) { try { localStorage.removeItem(OVERRIDE_KEY); } catch (err) {} }
+  }
 
-  function applyTheme(theme, persist) {
+  function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) {} }
     const night = theme === 'dark';
     themeSw.setAttribute('aria-checked', String(night));
     themeSw.title = night ? '夜間模式（點擊或滑動切換為白天）' : '白天模式（點擊或滑動切換為夜間）';
   }
   function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
-  function toggleTheme() { applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true); }
+  function manualTheme(theme) { setOverride(theme); applyTheme(theme); }
+  function toggleTheme() { manualTheme(currentTheme() === 'dark' ? 'light' : 'dark'); }
 
-  applyTheme(storedTheme() || systemTheme(), false);
-  if (darkMql) {
-    const onSys = () => { if (!storedTheme()) applyTheme(systemTheme(), false); };
-    if (darkMql.addEventListener) darkMql.addEventListener('change', onSys);
-    else if (darkMql.addListener) darkMql.addListener(onSys);
+  // 依目前時間同步；時段界線到了就自動切換（覆蓋值過期即清除）
+  function syncTheme() {
+    clearExpiredOverride();
+    const want = lmTheme.effective(Date.now());
+    if (want !== currentTheme()) applyTheme(want);
   }
+  applyTheme(lmTheme.effective(Date.now()));
+  setInterval(syncTheme, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncTheme(); });
 
   let swDrag = null;
   let swSuppressClick = false;
@@ -1427,7 +1455,7 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     setTimeout(() => { swSuppressClick = false; }, 400);
     if (cancelled) return;
     const want = d.x > (d.travel || swTravel()) / 2 ? 'dark' : 'light';
-    if (want !== currentTheme()) applyTheme(want, true);
+    if (want !== currentTheme()) manualTheme(want);
   }
   themeSw.addEventListener('pointerup', e => endSwDrag(e, false));
   themeSw.addEventListener('pointercancel', e => endSwDrag(e, true));
