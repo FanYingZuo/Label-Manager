@@ -67,7 +67,7 @@ LabelManager\
 
 讓程式**只聽本機**，外面完全連不進來，Windows 防火牆也不會跳出詢問視窗，**不需要 IT 開任何規則**。
 
-編輯 `start.bat` 最後的啟動行，加上 `--server.address=127.0.0.1`：
+`start.bat` **預設就是這個設定**，啟動行已帶 `--server.address=127.0.0.1`，不用改：
 
 ```bat
 %JAVA% -jar label-manager-0.1.0-SNAPSHOT.jar --server.address=127.0.0.1
@@ -77,7 +77,7 @@ LabelManager\
 
 ### 4.2 店內其他電腦／平板也要連
 
-1. `start.bat` **不要**加 `--server.address=127.0.0.1`（或改成這台電腦的內網 IP）。
+1. 編輯 `start.bat` 啟動行，**刪掉** `--server.address=127.0.0.1`（或改成這台電腦的內網 IP）。
 2. 請 IT（需系統管理員權限）新增**只限內網**的輸入規則：
 
 ```powershell

@@ -16,6 +16,7 @@ echo.
 echo 開啟瀏覽器訪問：http://localhost:8080
 echo.
 
-%JAVA% -jar label-manager-0.1.0-SNAPSHOT.jar
+:: 只接受本機連線（店內其他電腦要連時，刪掉 --server.address=127.0.0.1，見 docs\deployment-firewall.md 4.2）
+%JAVA% -jar label-manager-0.1.0-SNAPSHOT.jar --server.address=127.0.0.1
 
 pause
