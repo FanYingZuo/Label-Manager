@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>標籤管理</title>
+<script>
+/* Apply the saved theme before CSS paints to avoid a flash */
+(function(){try{var t=localStorage.getItem('lm_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <style>
 /* ---------- 色彩 Tokens ---------- */
 :root{
@@ -27,6 +31,8 @@
   --radius-md:12px;
   --radius-sm:8px;
   --shadow-lift:0 12px 32px rgba(0,0,0,.12);
+  --day:1;--night:0;
+  --sky-top:rgba(90,200,250,.22);
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
@@ -42,6 +48,8 @@
     --overlay:rgba(0,0,0,.4);
     --glass:rgba(44,44,46,.72);
     --shadow-lift:0 12px 32px rgba(0,0,0,.48);
+    --day:0;--night:1;
+    --sky-top:rgba(88,86,214,.28);
     color-scheme:dark;
   }
 }
@@ -57,6 +65,8 @@
   --overlay:rgba(0,0,0,.4);
   --glass:rgba(44,44,46,.72);
   --shadow-lift:0 12px 32px rgba(0,0,0,.48);
+  --day:0;--night:1;
+  --sky-top:rgba(88,86,214,.28);
   color-scheme:dark;
 }
 
@@ -89,6 +99,87 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .brand h1{font-size:28px;line-height:34px;font-weight:700;letter-spacing:-.4px}
 .proto{display:block;font-size:13px;color:var(--label-2);margin-top:2px}
 .date{font-size:13px;font-weight:500;color:var(--label-2);background:var(--fill);padding:4px 10px;border-radius:var(--radius-sm);white-space:nowrap}
+.title-tools{display:flex;align-items:center;gap:12px}
+
+/* ---------- 日夜情境（純裝飾） ---------- */
+.bar{position:relative;z-index:1}
+.sky{
+  position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;
+  background:linear-gradient(180deg,var(--sky-top) 0%,transparent 78%);
+  transition:background .5s ease;
+}
+.sky > *{position:absolute;transition:opacity .6s ease,transform .8s cubic-bezier(.34,1.3,.64,1)}
+.sky .sun{
+  top:-26px;right:18%;width:96px;height:96px;border-radius:50%;
+  background:radial-gradient(circle,#FFD60A 0 34%,rgba(255,214,10,.35) 35% 52%,rgba(255,204,0,0) 70%);
+  opacity:calc(var(--day) * .9);transform:translateY(calc(var(--night) * 40px));
+}
+.sky .cloud{
+  height:18px;border-radius:999px;background:#fff;
+  opacity:calc(var(--day) * .85);transform:translateX(calc(var(--night) * -30px));
+  box-shadow:0 2px 6px rgba(0,122,255,.08);
+}
+.sky .cloud::before,.sky .cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.sky .cloud::before{width:22px;height:22px;left:10px;top:-11px}
+.sky .cloud::after{width:16px;height:16px;left:26px;top:-7px}
+.sky .c1{top:30px;right:calc(18% + 64px);width:56px}
+.sky .c2{top:14px;right:calc(18% - 50px);width:44px;transform:translateX(calc(var(--night) * 30px)) scale(.8)}
+.sky .moon{
+  top:10px;right:18%;width:34px;height:34px;border-radius:50%;
+  box-shadow:inset -9px -3px 0 0 #F5F3CE;filter:drop-shadow(0 0 8px rgba(245,243,206,.45));
+  opacity:var(--night);transform:translateY(calc(var(--day) * -40px)) rotate(-18deg);
+}
+.sky .star{width:3px;height:3px;border-radius:50%;background:#fff;opacity:var(--night)}
+.sky .star.twinkle{animation:twinkle 2.6s ease-in-out infinite}
+.sky .s1{top:12px;right:30%}
+.sky .s2{top:34px;right:26%;animation-delay:.6s}
+.sky .s3{top:8px;right:11%;animation-delay:1.2s}
+.sky .s4{top:44px;right:13%;width:2px;height:2px}
+.sky .s5{top:22px;right:38%;width:2px;height:2px;animation-delay:1.8s}
+.sky .s6{top:50px;right:34%;width:2px;height:2px}
+@keyframes twinkle{0%,100%{opacity:calc(var(--night) * 1)}50%{opacity:calc(var(--night) * .25)}}
+
+/* ---------- 日夜切換開關（iOS Switch） ---------- */
+.theme-switch{
+  --w:62px;--h:32px;--pad:2px;--knob:28px;
+  position:relative;flex:none;width:var(--w);height:var(--h);border-radius:999px;
+  padding:0;touch-action:none;user-select:none;-webkit-user-select:none;
+  background:linear-gradient(135deg,#64D2FF,#0A84FF);
+  box-shadow:inset 0 0 0 .5px rgba(0,0,0,.08);
+  transition:background .35s ease;overflow:hidden;
+}
+.theme-switch[aria-checked="true"]{background:linear-gradient(135deg,#1C1C3C,#3A3A8C)}
+.busy .theme-switch{pointer-events:auto;opacity:1}
+.ts-deco{position:absolute;inset:0;pointer-events:none}
+.ts-deco i{position:absolute;display:block;transition:opacity .35s ease,transform .45s cubic-bezier(.34,1.3,.64,1)}
+.ts-cloud{height:7px;border-radius:999px;background:#fff;opacity:.95}
+.ts-cloud.a{width:16px;right:8px;top:9px}
+.ts-cloud.b{width:12px;right:14px;top:18px;opacity:.8}
+.ts-star{width:2px;height:2px;border-radius:50%;background:#fff;opacity:0;transform:translateY(6px)}
+.ts-star.a{left:10px;top:9px}
+.ts-star.b{left:18px;top:19px;width:3px;height:3px}
+.ts-star.c{left:26px;top:8px}
+.theme-switch[aria-checked="true"] .ts-cloud{opacity:0;transform:translateY(-6px)}
+.theme-switch[aria-checked="true"] .ts-star{opacity:1;transform:none}
+.ts-knob{
+  --x:0px;
+  position:absolute;top:var(--pad);left:var(--pad);
+  width:var(--knob);height:var(--knob);border-radius:999px;
+  background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15),0 3px 1px rgba(0,0,0,.06);
+  display:grid;place-items:center;
+  transform:translateX(var(--knob-x,var(--x)));
+  transition:transform .35s cubic-bezier(.34,1.4,.64,1),width .2s ease,background .35s ease;
+}
+.theme-switch[aria-checked="true"] .ts-knob{--x:calc(var(--w) - var(--knob) - var(--pad) * 2);background:#E5E5EA}
+.theme-switch.pressed .ts-knob{width:calc(var(--knob) + 6px)}
+.theme-switch.pressed[aria-checked="true"]:not(.dragging) .ts-knob{--x:calc(var(--w) - var(--knob) - 6px - var(--pad) * 2)}
+.theme-switch.dragging .ts-knob{transition:width .2s ease,background .35s ease}
+.ts-knob svg{position:absolute;width:18px;height:18px;transition:opacity .3s ease,transform .45s cubic-bezier(.34,1.3,.64,1)}
+.ts-sun{color:#FF9F0A}
+.ts-moon{color:#5E5CE6;opacity:0;transform:rotate(-90deg) scale(.5)}
+.theme-switch[aria-checked="true"] .ts-sun{opacity:0;transform:rotate(90deg) scale(.5)}
+.theme-switch[aria-checked="true"] .ts-moon{opacity:1;transform:none}
+.theme-switch:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:999px}
 
 .counts{
   display:grid;grid-template-columns:repeat(3,1fr);
@@ -363,6 +454,12 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
 <body>
 
 <header class="topbar">
+  <div class="sky" aria-hidden="true">
+    <i class="sun"></i><i class="cloud c1"></i><i class="cloud c2"></i>
+    <i class="moon"></i>
+    <i class="star twinkle s1"></i><i class="star twinkle s2"></i><i class="star twinkle s3"></i>
+    <i class="star s4"></i><i class="star twinkle s5"></i><i class="star s6"></i>
+  </div>
   <div class="bar">
     <div class="title-row">
       <div>
@@ -372,7 +469,19 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
         </div>
         <span class="proto">原型：資料儲存於後端，分頁設定存於本機</span>
       </div>
-      <div class="date" id="today"></div>
+      <div class="title-tools">
+        <div class="date" id="today"></div>
+        <button type="button" class="theme-switch" id="theme-switch" role="switch" aria-checked="false" aria-label="夜間模式">
+          <span class="ts-deco" aria-hidden="true">
+            <i class="ts-cloud a"></i><i class="ts-cloud b"></i>
+            <i class="ts-star a"></i><i class="ts-star b"></i><i class="ts-star c"></i>
+          </span>
+          <span class="ts-knob" aria-hidden="true">
+            <svg class="ts-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <svg class="ts-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+          </span>
+        </button>
+      </div>
     </div>
     <div class="counts" role="group" aria-label="狀態統計">
       <div class="count"><span class="count-num green tabular" id="cnt-green">0</span><span class="count-label">安全</span></div>
@@ -710,7 +819,7 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
       pages.push({ id: newId, name: String(pages.length + 1) });
       currentPageId = newId;
       savePageState();
-      renderPages();
+      render();
       openPageModal(newId);
     });
     nav.appendChild(addBtn);
@@ -729,7 +838,7 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     err.textContent = '';
     delErr.textContent = '';
     $('#page-delete-group').style.display = pages.length > 1 ? '' : 'none';
-    modal.classList.remove('hidden');
+    showModal(modal);
     setTimeout(() => { inp.select(); inp.focus(); }, 10);
 
     $('#page-modal-save').onclick = () => {
@@ -764,11 +873,7 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     };
   }
 
-  function closePageModal() {
-    const modal = $('#page-modal');
-    modal.classList.add('closing');
-    setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('closing'); }, 200);
-  }
+  function closePageModal() { hideModal($('#page-modal')); }
 
   $('#page-modal-cancel').addEventListener('click', closePageModal);
   $('#page-modal').addEventListener('click', e => { if (e.target === $('#page-modal')) closePageModal(); });
@@ -1062,9 +1167,16 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     return null;
   }
 
+  // Hysteresis: moving the slot reflows the page, which can put a *stationary* pointer
+  // over a different spot and bounce the slot back every frame. After each slot move,
+  // require the pointer to travel SLOT_LOCK_PX (page coords, so auto-scroll still counts).
+  const SLOT_LOCK_PX = 6;
   function placeSlot(d, container, before, sel) {
     if (d.slot.parentNode === container && d.slot.nextSibling === before) return;
+    const lp = toLayout(d.px, d.py);
+    if (d.lock && Math.hypot(lp.x - d.lock.x, lp.y - d.lock.y) < SLOT_LOCK_PX) return;
     flip(() => container.insertBefore(d.slot, before), sel);
+    d.lock = lp;
   }
 
   function setOver(d, rack) {
@@ -1085,11 +1197,12 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
     const rack = under ? under.closest('.rack') : null;
     if (rack) {
       placeSlot(d, rack, insertPointFor(rack, lp.x, lp.y), '.item-card');
-      setOver(d, rack);
     } else {
       placeSlot(d, d.parent0, d.before0, '.item-card');
-      setOver(d, null);
     }
+    // highlight follows where the slot really is (it may be held by the hysteresis lock)
+    const slotRack = d.slot.parentNode;
+    setOver(d, rack && slotRack === rack ? rack : (slotRack === d.parent0 && !rack ? null : d.overRack));
   }
 
   function tick() {
@@ -1246,6 +1359,83 @@ body.is-dragging,body.is-dragging *{user-select:none;-webkit-user-select:none;cu
   window.addEventListener('pointerup', onWinUp);
   window.addEventListener('pointercancel', onWinUp);
   window.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+
+  /* ---- 日夜模式（iOS Switch：點擊 / 拖曳把手 / 鍵盤） ---- */
+  const THEME_KEY = 'lm_theme';
+  const themeSw = $('#theme-switch');
+  const darkMql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function storedTheme() {
+    try {
+      const t = localStorage.getItem(THEME_KEY);
+      return (t === 'light' || t === 'dark') ? t : null;
+    } catch (e) { return null; }
+  }
+  function systemTheme() { return darkMql && darkMql.matches ? 'dark' : 'light'; }
+
+  function applyTheme(theme, persist) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) {} }
+    const night = theme === 'dark';
+    themeSw.setAttribute('aria-checked', String(night));
+    themeSw.title = night ? '夜間模式（點擊或滑動切換為白天）' : '白天模式（點擊或滑動切換為夜間）';
+  }
+  function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function toggleTheme() { applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true); }
+
+  applyTheme(storedTheme() || systemTheme(), false);
+  if (darkMql) {
+    const onSys = () => { if (!storedTheme()) applyTheme(systemTheme(), false); };
+    if (darkMql.addEventListener) darkMql.addEventListener('change', onSys);
+    else if (darkMql.addListener) darkMql.addListener(onSys);
+  }
+
+  let swDrag = null;
+  let swSuppressClick = false;
+  function swTravel() {
+    const knob = themeSw.querySelector('.ts-knob');
+    return Math.max(0, themeSw.clientWidth - knob.offsetWidth - 4);
+  }
+  themeSw.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    swDrag = {
+      id: e.pointerId, sx: e.clientX, moved: false,
+      start: currentTheme() === 'dark' ? swTravel() : 0, x: 0,
+    };
+    themeSw.classList.add('pressed');
+    try { themeSw.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  themeSw.addEventListener('pointermove', e => {
+    if (!swDrag || e.pointerId !== swDrag.id) return;
+    const dx = e.clientX - swDrag.sx;
+    if (!swDrag.moved && Math.abs(dx) <= 3) return;
+    swDrag.moved = true;
+    themeSw.classList.add('dragging');
+    const travel = swTravel();
+    swDrag.x = Math.max(0, Math.min(travel, swDrag.start + dx));
+    themeSw.style.setProperty('--knob-x', swDrag.x + 'px');
+    swDrag.travel = travel;
+  });
+  function endSwDrag(e, cancelled) {
+    if (!swDrag || e.pointerId !== swDrag.id) return;
+    const d = swDrag;
+    swDrag = null;
+    themeSw.classList.remove('pressed', 'dragging');
+    themeSw.style.removeProperty('--knob-x');
+    if (!d.moved) return;           // plain tap → handled by click
+    swSuppressClick = true;
+    setTimeout(() => { swSuppressClick = false; }, 400);
+    if (cancelled) return;
+    const want = d.x > (d.travel || swTravel()) / 2 ? 'dark' : 'light';
+    if (want !== currentTheme()) applyTheme(want, true);
+  }
+  themeSw.addEventListener('pointerup', e => endSwDrag(e, false));
+  themeSw.addEventListener('pointercancel', e => endSwDrag(e, true));
+  themeSw.addEventListener('lostpointercapture', e => endSwDrag(e, true));
+  themeSw.addEventListener('click', e => {
+    if (swSuppressClick) { swSuppressClick = false; e.preventDefault(); return; }
+    toggleTheme();
+  });
 
   /* ---- 鍵盤 ---- */
   document.addEventListener('keydown', e => {

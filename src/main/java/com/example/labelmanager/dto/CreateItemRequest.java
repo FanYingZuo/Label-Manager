@@ -4,8 +4,8 @@ import java.time.LocalDate;
 
 public record CreateItemRequest(
         String name,
-        int thawDays,
-        int keepDays,
+        Integer thawDays,
+        Integer keepDays,
         LocalDate thawDate
 ) {
 }

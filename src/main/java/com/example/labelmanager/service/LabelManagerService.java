@@ -48,16 +48,27 @@ public class LabelManagerService {
         }
     }
 
-    private void validateThawDays(int days) {
+    private void validateThawDays(Integer days) {
+        if (days == null) {
+            throw new IllegalArgumentException("請填寫解凍天數");
+        }
         if (days < 0 || days > 30) {
             throw new IllegalArgumentException("解凍天數必須介於 0-30 天");
         }
     }
 
-    private void validateKeepDays(int days) {
+    private void validateKeepDays(Integer days) {
+        if (days == null) {
+            throw new IllegalArgumentException("請填寫保存天數");
+        }
         if (days < 0 || days > 365) {
             throw new IllegalArgumentException("保存天數必須介於 0-365 天");
         }
+    }
+
+    /** null target index means "append at the end". */
+    private static int indexOrEnd(Integer index, int size) {
+        return index == null ? size : index;
     }
 
     private void validateShelfName(String name) {
@@ -232,13 +243,16 @@ public class LabelManagerService {
 
     public void moveShelf(MoveShelfRequest request) {
         Objects.requireNonNull(request, "Request cannot be null");
+        if (request.shelfId() == null) {
+            throw new IllegalArgumentException("缺少層架編號");
+        }
         ShelfEntity shelf = shelfRepository.findById(request.shelfId())
                 .orElseThrow(() -> new IllegalArgumentException("層架不存在: " + request.shelfId()));
 
         List<ShelfEntity> shelves = new ArrayList<>(shelfRepository.findAllByOrderBySortOrderAsc());
         shelves.removeIf(s -> s.getId().equals(shelf.getId()));
 
-        int targetIndex = Math.max(0, Math.min(request.targetIndex(), shelves.size()));
+        int targetIndex = Math.max(0, Math.min(indexOrEnd(request.targetIndex(), shelves.size()), shelves.size()));
         shelves.add(targetIndex, shelf);
 
         for (int i = 0; i < shelves.size(); i++) {
@@ -249,6 +263,9 @@ public class LabelManagerService {
 
     public void moveItem(MoveItemRequest request) {
         Objects.requireNonNull(request, "Request cannot be null");
+        if (request.itemId() == null || request.targetShelfId() == null) {
+            throw new IllegalArgumentException("缺少品項或目標層架編號");
+        }
         ItemEntity item = itemRepository.findById(request.itemId())
                 .orElseThrow(() -> new IllegalArgumentException("品項不存在: " + request.itemId()));
 
@@ -262,7 +279,7 @@ public class LabelManagerService {
             List<ItemEntity> items = new ArrayList<>(itemRepository.findByShelfIdOrderBySortOrderAsc(sourceShelfId));
             items.removeIf(i -> i.getId().equals(item.getId()));
 
-            int targetIndex = Math.max(0, Math.min(request.targetIndex(), items.size()));
+            int targetIndex = Math.max(0, Math.min(indexOrEnd(request.targetIndex(), items.size()), items.size()));
             items.add(targetIndex, item);
 
             for (int i = 0; i < items.size(); i++) {
@@ -280,7 +297,7 @@ public class LabelManagerService {
             List<ItemEntity> targetItems = new ArrayList<>(itemRepository.findByShelfIdOrderBySortOrderAsc(targetShelfId));
             item.setShelfId(targetShelfId);
 
-            int targetIndex = Math.max(0, Math.min(request.targetIndex(), targetItems.size()));
+            int targetIndex = Math.max(0, Math.min(indexOrEnd(request.targetIndex(), targetItems.size()), targetItems.size()));
             targetItems.add(targetIndex, item);
 
             for (int i = 0; i < targetItems.size(); i++) {

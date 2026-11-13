@@ -246,4 +246,57 @@ class ApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name", is("第 1 層")));
     }
+
+    @Test
+    @DisplayName("Loop R1: 缺少必填欄位回 400 而非 500 或悄悄存 0")
+    void testMissingRequiredFieldsReturn400() throws Exception {
+        Long shelf1Id = shelfRepository.findAllByOrderBySortOrderAsc().get(0).getId();
+
+        mockMvc.perform(post("/api/shelves/" + shelf1Id + "/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"x\",\"keepDays\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+        mockMvc.perform(post("/api/shelves/" + shelf1Id + "/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"x\",\"thawDays\":1}"))
+                .andExpect(status().isBadRequest());
+        assertEquals(0, itemRepository.findByShelfIdOrderBySortOrderAsc(shelf1Id).size());
+
+        mockMvc.perform(put("/api/items/move").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+        mockMvc.perform(put("/api/shelves/move").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    @DisplayName("Loop R1: 移動時省略 targetIndex 代表放到最後")
+    void testMoveWithoutTargetIndexAppends() throws Exception {
+        var shelves = shelfRepository.findAllByOrderBySortOrderAsc();
+        Long shelf1Id = shelves.get(0).getId();
+        Long shelf2Id = shelves.get(1).getId();
+        for (String n : new String[]{"A", "B"}) {
+            mockMvc.perform(post("/api/shelves/" + shelf2Id + "/items")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new CreateItemRequest(n, 1, 1, null))));
+        }
+        mockMvc.perform(post("/api/shelves/" + shelf1Id + "/items")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new CreateItemRequest("C", 1, 1, null))));
+        Long cId = itemRepository.findByShelfIdOrderBySortOrderAsc(shelf1Id).get(0).getId();
+
+        mockMvc.perform(put("/api/items/move").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"itemId\":" + cId + ",\"targetShelfId\":" + shelf2Id + "}"))
+                .andExpect(status().isOk());
+        var names = itemRepository.findByShelfIdOrderBySortOrderAsc(shelf2Id).stream().map(i -> i.getName()).toList();
+        assertEquals(java.util.List.of("A", "B", "C"), names);
+
+        mockMvc.perform(put("/api/shelves/move").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"shelfId\":" + shelf1Id + "}"))
+                .andExpect(status().isOk());
+        var after = shelfRepository.findAllByOrderBySortOrderAsc();
+        assertEquals(shelf1Id, after.get(after.size() - 1).getId());
+    }
 }
